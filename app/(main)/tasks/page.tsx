@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
-import { useClassroomSync } from "@/hooks/useClassroomSync";
-import { TaskCard } from "@/components/features/TaskCard";
-import { CompletionModal } from "@/components/features/CompletionModal";
+// Menggunakan relative path agar lebih aman di Vercel
+import { useClassroomSync } from "../../hooks/useClassroomSync";
+import { TaskCard } from "../../../components/features/TaskCard";
+import { CompletionModal } from "../../../components/features/CompletionModal";
 import { RefreshCw } from "lucide-react";
 
 export default function TasksPage() {

@@ -87,7 +87,7 @@ export default function DashboardPage() {
               transition={{ delay: 0.5, duration: 0.5 }}
               className="mt-12 max-w-xl text-4xl font-extrabold tracking-tight text-slate-800 md:text-5xl leading-tight drop-shadow-sm"
             >
-              I'm here to track your mood, manage your tasks, and <span className="text-sky-500">protect your peace.</span>
+              I&apos;m here to track your mood, manage your tasks, and <span className="text-sky-500">protect your peace.</span>
             </motion.h2>
           </motion.div>
         )}
@@ -106,7 +106,7 @@ export default function DashboardPage() {
               Good evening, Tesalonika. 🌙
             </h1>
             <p className="mt-2 text-slate-700 font-medium">
-              Leave the campus chaos at the door. You're in your safe space now.
+              Leave the campus chaos at the door. You&apos;re in your safe space now.
             </p>
           </motion.div>
 
@@ -114,7 +114,7 @@ export default function DashboardPage() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="rounded-3xl border border-white/80 bg-white/70 p-6 md:p-8 shadow-md backdrop-blur-xl">
             <h2 className="mb-6 flex items-center gap-2 font-semibold text-slate-800 text-lg">
               <Sparkles className="h-5 w-5 text-sky-500" />
-              Honestly, how's your energy right now?
+              Honestly, how&apos;s your energy right now?
             </h2>
             
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-6">
@@ -138,7 +138,7 @@ export default function DashboardPage() {
                   {/* ENERGIZED OPTIONS */}
                   {selectedMood === "Energized" && (
                     <div className="space-y-4">
-                      <p className="text-[15px] leading-relaxed text-slate-700 font-medium">You've got that spark today! 🤩 Let's channel this high energy before it fades.</p>
+                      <p className="text-[15px] leading-relaxed text-slate-700 font-medium">You&apos;ve got that spark today! 🤩 Let&apos;s channel this high energy before it fades.</p>
                       <div className="grid gap-2 sm:grid-cols-2">
                         <button className="flex items-center gap-3 rounded-xl bg-yellow-50 px-4 py-3 text-sm font-semibold text-yellow-700 transition-all hover:bg-yellow-100 active:scale-95">
                           <Target className="h-5 w-5 text-yellow-500" /> Tackle Priority Tasks
@@ -164,7 +164,7 @@ export default function DashboardPage() {
                   {/* CALM OPTIONS */}
                   {selectedMood === "Calm" && (
                     <div className="space-y-4">
-                      <p className="text-[15px] leading-relaxed text-slate-700 font-medium">Nice and steady. 😌 Protect this peace—it's the absolute best state for absorbing information.</p>
+                      <p className="text-[15px] leading-relaxed text-slate-700 font-medium">Nice and steady. 😌 Protect this peace—it&apos;s the absolute best state for absorbing information.</p>
                       <div className="grid gap-2 sm:grid-cols-2">
                         <button className="flex items-center gap-3 rounded-xl bg-sky-50 text-sky-700 px-4 py-3 text-sm font-semibold transition-all hover:bg-sky-100 active:scale-95">
                           <BookOpen className="h-5 w-5 text-sky-500" /> Read Literature Drafts
@@ -212,7 +212,7 @@ export default function DashboardPage() {
                   {/* TIRED OPTIONS */}
                   {selectedMood === "Tired" && (
                     <div className="space-y-4">
-                      <p className="text-[15px] leading-relaxed text-slate-700 font-medium">Your brain needs a break. 🥱 The assignments can wait until tomorrow. Don't force it.</p>
+                      <p className="text-[15px] leading-relaxed text-slate-700 font-medium">Your brain needs a break. 🥱 The assignments can wait until tomorrow. Don&apos;t force it.</p>
                       <div className="grid gap-2 sm:grid-cols-2">
                         <button className="flex items-center gap-3 rounded-xl bg-indigo-50 text-indigo-700 px-4 py-3 text-sm font-semibold transition-all hover:bg-indigo-100 active:scale-95">
                           <Headphones className="h-5 w-5 text-indigo-500" /> Play Relaxing Lo-Fi
@@ -236,7 +236,7 @@ export default function DashboardPage() {
                   {/* BURNOUT OPTIONS */}
                   {selectedMood === "Burnout" && (
                     <div className="space-y-4">
-                      <p className="text-[15px] leading-relaxed text-slate-700 font-medium">You're running on empty. 😵‍💫 Step away from the screen. Your mental health is the top priority right now.</p>
+                      <p className="text-[15px] leading-relaxed text-slate-700 font-medium">You&apos;re running on empty. 😵‍💫 Step away from the screen. Your mental health is the top priority right now.</p>
                       <div className="grid gap-2 sm:grid-cols-2">
                         <Link href="/assistant">
                           <button className="flex w-full items-center gap-3 rounded-xl bg-orange-100 text-orange-700 px-4 py-3 text-sm font-semibold transition-all hover:bg-orange-200 active:scale-95">
@@ -262,7 +262,7 @@ export default function DashboardPage() {
                   {/* ANXIOUS OPTIONS */}
                   {selectedMood === "Anxious" && (
                     <div className="space-y-4">
-                      <p className="text-[15px] leading-relaxed text-slate-700 font-medium">It feels heavy, but you don't have to figure it all out today. 😰 Breathe. Let's break it down.</p>
+                      <p className="text-[15px] leading-relaxed text-slate-700 font-medium">It feels heavy, but you don&apos;t have to figure it all out today. 😰 Breathe. Let&apos;s break it down.</p>
                       <div className="grid gap-2 sm:grid-cols-2">
                         <Link href="/assistant">
                           <button className="flex w-full items-center gap-3 rounded-xl bg-teal-50 text-teal-700 px-4 py-3 text-sm font-semibold transition-all hover:bg-teal-100 active:scale-95">
@@ -310,7 +310,7 @@ export default function DashboardPage() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }} className="flex flex-col justify-center rounded-3xl border border-sky-100 bg-white/60 p-8 shadow-md backdrop-blur-md">
             <Quote className="mb-4 h-8 w-8 text-sky-400" />
             <p className="text-lg italic text-slate-800 leading-relaxed font-serif">
-              "{randomQuote.text}"
+              &quot;{randomQuote.text}&quot;
             </p>
             <p className="mt-4 text-sm font-bold text-sky-600 uppercase tracking-widest">
               — {randomQuote.author}
