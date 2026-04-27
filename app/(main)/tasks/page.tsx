@@ -1,249 +1,243 @@
 "use client";
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Play, Pause, RotateCcw, AlertOctagon, Flame, 
-  CheckCircle2, Circle, Clock, BookOpen, ListTodo, Plus
+  CheckCircle2, Circle, Clock, ListTodo, Plus, 
+  Loader2, ExternalLink, Trophy, CalendarDays,
+  CheckCircle, ArrowUpRight, ChevronRight, Award, BookOpen
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+
+type TabType = 'active' | 'missing' | 'completed';
 
 export default function FocusFlowPage() {
-  // ── STATE UNTUK TIMER ──
-  const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 menit
+  const [activeTab, setActiveTab] = useState<TabType>('active');
+  const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchClassroomData = useCallback(async (token: string) => {
+    setIsLoading(true);
+    try {
+      const courseRes = await fetch("https://classroom.googleapis.com/v1/courses?courseStates=ACTIVE", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const courseData = await courseRes.json();
+
+      if (courseData.courses) {
+        const allTasksPromises = courseData.courses.map(async (course: any) => {
+          const taskRes = await fetch(`https://classroom.googleapis.com/v1/courses/${course.id}/courseWork`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const taskData = await taskRes.json();
+          if (!taskData.courseWork) return [];
+
+          const subRes = await fetch(`https://classroom.googleapis.com/v1/courses/${course.id}/courseWork/-/studentSubmissions`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const subData = await subRes.json();
+
+          return taskData.courseWork.map((t: any) => {
+            const submission = subData.studentSubmissions?.find((s: any) => s.courseWorkId === t.id);
+            const isTurnedIn = submission?.state === "TURNED_IN" || submission?.state === "RETURNED";
+            const grade = submission?.assignedGrade ? `${submission.assignedGrade}/${t.maxPoints}` : null;
+            const dueDate = t.dueDate ? new Date(t.dueDate.year, t.dueDate.month - 1, t.dueDate.day) : null;
+            const isOverdue = dueDate ? dueDate < new Date() : false;
+
+            return {
+              id: t.id,
+              title: t.title,
+              course: course.name,
+              link: t.alternateLink,
+              completed: isTurnedIn,
+              grade: grade,
+              deadlineStr: dueDate ? dueDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : "No Deadline",
+              status: isTurnedIn ? "completed" : (isOverdue ? "missing" : "active")
+            };
+          });
+        });
+
+        const results = await Promise.all(allTasksPromises);
+        setTasks(results.flat().filter(t => t !== undefined));
+      }
+    } catch (error) {
+      console.error("Gagal menarik data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.provider_token) fetchClassroomData(session.provider_token);
+      else setIsLoading(false);
+    };
+    checkUser();
+  }, [fetchClassroomData]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isRunning && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0) {
-      setIsRunning(false);
-    }
+    if (isRunning && timeLeft > 0) interval = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
+    else if (timeLeft === 0) setIsRunning(false);
     return () => clearInterval(interval);
   }, [isRunning, timeLeft]);
 
-  const toggleTimer = () => setIsRunning(!isRunning);
-  const resetTimer = () => {
-    setIsRunning(false);
-    setTimeLeft(25 * 60);
-  };
+  const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  };
-
-  // ── STATE UNTUK TUGAS ──
-  // Ada 3 tipe: 'missing' (terlewat), 'urgent' (mendesak), 'normal' (to-do biasa)
-  const [tasks, setTasks] = useState([
-    { id: 1, title: "Phonetics & Phonology Quiz", course: "Linguistics", type: "missing", completed: false, deadline: "Overdue by 2 days" },
-    { id: 2, title: "Feature Hypothesis Review", course: "SLA", type: "urgent", completed: false, deadline: "Today, 23:59" },
-    { id: 3, title: '"The Story of an Hour" Draft', course: "Literature Analysis", type: "normal", completed: false, deadline: "In 3 Days" },
-    { id: 4, title: "Read Chapter 4 for next class", course: "SLA", type: "normal", completed: false, deadline: "Next Week" },
-  ]);
-
-  const [newTask, setNewTask] = useState("");
-
-  const toggleTask = (id: number) => {
-    setTasks(tasks.map(task => 
-      task.id === id ? { ...task, completed: !task.completed } : task
-    ));
-  };
-
-  const addTask = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTask.trim()) return;
-    setTasks([...tasks, { 
-      id: Date.now(), 
-      title: newTask, 
-      course: "Personal To-Do", 
-      type: "normal", 
-      completed: false, 
-      deadline: "No deadline" 
-    }]);
-    setNewTask("");
-  };
-
-  const missingTasks = tasks.filter(t => t.type === "missing" && !t.completed);
-  const urgentTasks = tasks.filter(t => t.type === "urgent" && !t.completed);
-  const normalTasks = tasks.filter(t => t.type === "normal" || t.completed);
+  const missingTasks = tasks.filter(t => t.status === "missing");
+  const activeTasks = tasks.filter(t => t.status === "active");
+  const completedTasks = tasks.filter(t => t.status === "completed");
 
   return (
-    <div 
-      className="min-h-screen p-6 md:p-10 font-sans pb-24 selection:bg-sky-200"
-      style={{ background: "linear-gradient(to bottom right, #e0f2fe 0%, #f0f9ff 50%, #f8fafc 100%)" }}
-    >
-      <div className="mx-auto max-w-6xl space-y-8">
+    <div className="min-h-screen p-4 md:p-8 font-sans pb-24 bg-[#F0F9FF]">
+      <div className="mx-auto max-w-7xl">
         
-        {/* HEADER */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-800 flex items-center gap-3">
-            Focus Flow 🌊
-          </h1>
-          <p className="mt-2 text-slate-600 font-medium">
-            Clear your mind. Tackle your tasks one step at a time.
-          </p>
-        </motion.div>
+        <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-1">
+            <h1 className="text-4xl font-black text-slate-800 tracking-tight">Focus Flow 🌊</h1>
+            <p className="text-slate-500 font-medium">Protect your peace, one task at a time.</p>
+          </div>
+          
+          <div className="flex gap-3 overflow-x-auto pb-2 md:pb-0">
+            <StatCard label="Missing" count={missingTasks.length} color="text-rose-500" bg="bg-rose-50" />
+            <StatCard label="Active" count={activeTasks.length} color="text-sky-500" bg="bg-sky-50" />
+            <StatCard label="Done" count={completedTasks.length} color="text-emerald-500" bg="bg-emerald-50" />
+          </div>
+        </header>
 
-        {/* MISSING TUGAS ALERT (Hanya muncul jika ada tugas yang terlewat) */}
-        {missingTasks.length > 0 && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }} 
-            animate={{ opacity: 1, scale: 1 }} 
-            className="rounded-2xl border border-red-200 bg-red-50 p-5 shadow-sm"
-          >
-            <div className="flex items-center gap-3 mb-3 text-red-600">
-              <AlertOctagon className="h-6 w-6" />
-              <h2 className="font-bold text-lg">Missing Assignments</h2>
+        <div className="grid gap-8 lg:grid-cols-12">
+          <div className="lg:col-span-8">
+            <div className="mb-6 flex gap-2 p-1.5 bg-white/50 backdrop-blur-md rounded-2xl border border-white/80 w-fit shadow-sm">
+              <TabButton active={activeTab === 'active'} onClick={() => setActiveTab('active')} label="Active" icon={<Flame size={16} />} />
+              <TabButton active={activeTab === 'missing'} onClick={() => setActiveTab('missing')} label="Missing" icon={<AlertOctagon size={16} />} />
+              <TabButton active={activeTab === 'completed'} onClick={() => setActiveTab('completed')} label="Completed" icon={<CheckCircle size={16} />} />
             </div>
-            <div className="space-y-3">
-              {missingTasks.map(task => (
-                <div key={task.id} className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm border border-red-100">
-                  <div className="flex items-center gap-4">
-                    <button onClick={() => toggleTask(task.id)} className="text-red-300 hover:text-red-500 transition-colors">
-                      <Circle className="h-6 w-6" />
-                    </button>
-                    <div>
-                      <h3 className="font-bold text-slate-800">{task.title}</h3>
-                      <p className="text-xs font-semibold text-red-500 mt-0.5">{task.course} • {task.deadline}</p>
-                    </div>
-                  </div>
-                  <button className="text-xs font-bold bg-red-100 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-200 transition-colors">
-                    Do it now
+
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center p-20 bg-white/40 rounded-[32px] border-2 border-dashed border-sky-200">
+                <Loader2 className="h-10 w-10 animate-spin text-sky-500 mb-4" />
+                <p className="text-sky-700 font-bold">Updating Classroom...</p>
+              </div>
+            ) : (
+              <motion.div 
+                key={activeTab}
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                className="space-y-4"
+              >
+                {activeTab === 'active' && (
+                  activeTasks.length > 0 ? activeTasks.map(t => <TaskCard key={t.id} task={t} type="active" />) 
+                  : <EmptyState message="No active tasks. Time to rest? ☕" />
+                )}
+                {activeTab === 'missing' && (
+                  missingTasks.length > 0 ? missingTasks.map(t => <TaskCard key={t.id} task={t} type="missing" />) 
+                  : <EmptyState message="Nothing missing! You're on fire! 🔥" />
+                )}
+                {activeTab === 'completed' && (
+                  completedTasks.length > 0 ? completedTasks.map(t => <TaskCard key={t.id} task={t} type="completed" />) 
+                  : <EmptyState message="Complete a task to see it here. 🏆" />
+                )}
+              </motion.div>
+            )}
+          </div>
+
+          <div className="lg:col-span-4">
+            <div className="sticky top-10 space-y-6">
+              <section className="bg-white rounded-[40px] p-8 shadow-xl shadow-sky-100 border border-white flex flex-col items-center">
+                <div className="flex items-center gap-2 mb-8 text-sky-400 font-bold text-[10px] uppercase tracking-widest">
+                  <Clock size={14} /> Focus Session
+                </div>
+                <div className="relative flex items-center justify-center w-52 h-52 mb-10">
+                  <svg className="absolute w-full h-full -rotate-90">
+                    <circle cx="104" cy="104" r="96" stroke="#F1F5F9" strokeWidth="8" fill="transparent" />
+                    <motion.circle 
+                      cx="104" cy="104" r="96" stroke="#0EA5E9" strokeWidth="8" fill="transparent" 
+                      strokeDasharray="603"
+                      animate={{ strokeDashoffset: 603 - (603 * (timeLeft / (25 * 60))) }}
+                      transition={{ duration: 1 }}
+                    />
+                  </svg>
+                  <div className="text-5xl font-black text-slate-800 tabular-nums">{formatTime(timeLeft)}</div>
+                </div>
+                <div className="flex gap-3 w-full">
+                  <button onClick={() => setIsRunning(!isRunning)} className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-white transition-all shadow-lg active:scale-95 ${isRunning ? 'bg-orange-400 shadow-orange-100' : 'bg-sky-600 shadow-sky-100'}`}>
+                    {isRunning ? <Pause size={20} /> : <Play size={20} />} {isRunning ? "Pause" : "Start"}
+                  </button>
+                  <button onClick={() => {setTimeLeft(25*60); setIsRunning(false)}} className="p-4 bg-slate-100 rounded-2xl text-slate-500 hover:bg-slate-200 transition-colors">
+                    <RotateCcw size={20} />
                   </button>
                 </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        <div className="grid gap-8 lg:grid-cols-3">
-          
-          {/* BAGIAN KIRI: DAFTAR TUGAS */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* 1. URGENT DEADLINES */}
-            {urgentTasks.length > 0 && (
-              <section className="rounded-3xl border border-orange-200 bg-orange-50/50 p-6 shadow-sm backdrop-blur-xl">
-                <div className="mb-4 flex items-center gap-2 text-orange-600">
-                  <Flame className="h-5 w-5" />
-                  <h2 className="font-bold text-lg">Urgent Deadlines</h2>
-                </div>
-                <div className="space-y-3">
-                  {urgentTasks.map(task => (
-                    <div key={task.id} className="group flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-orange-100 transition-all hover:border-orange-300">
-                      <button onClick={() => toggleTask(task.id)} className="text-orange-300 hover:text-orange-500 transition-colors">
-                        <Circle className="h-6 w-6" />
-                      </button>
-                      <div className="flex-1">
-                        <h3 className="font-bold text-slate-800">{task.title}</h3>
-                        <p className="text-xs font-semibold text-orange-500 mt-0.5">{task.course} • {task.deadline}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </section>
-            )}
 
-            {/* 2. TO-DO LIST & TUGAS LAINNYA */}
-            <section className="rounded-3xl border border-white/80 bg-white/70 p-6 shadow-md backdrop-blur-xl">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sky-600">
-                  <ListTodo className="h-5 w-5" />
-                  <h2 className="font-bold text-lg text-slate-800">To-Do List</h2>
+              <div className="bg-[#0C4A6E] rounded-[32px] p-6 text-white relative overflow-hidden group">
+                <div className="relative z-10">
+                  <p className="text-sky-300 text-[10px] font-bold uppercase tracking-widest mb-2">Study Tip</p>
+                  <p className="text-sm font-medium leading-relaxed italic">"Tidying your room for 5 minutes can clear your mental space for 2 hours."</p>
+                </div>
+                <div className="absolute -bottom-6 -right-6 opacity-10 group-hover:scale-110 transition-transform">
+                  <BookOpen size={120} />
                 </div>
               </div>
-
-              {/* Form Tambah Tugas */}
-              <form onSubmit={addTask} className="mb-5 flex gap-3">
-                <input
-                  type="text"
-                  value={newTask}
-                  onChange={(e) => setNewTask(e.target.value)}
-                  placeholder="What else do you need to do?"
-                  className="flex-1 rounded-xl border border-slate-200 bg-white/50 px-4 py-3 text-sm outline-none transition-all focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
-                />
-                <button type="submit" className="flex items-center justify-center rounded-xl bg-sky-500 px-4 text-white shadow-sm hover:bg-sky-600 transition-colors">
-                  <Plus className="h-5 w-5" />
-                </button>
-              </form>
-
-              {/* List Tugas Normal */}
-              <div className="space-y-3">
-                {normalTasks.map(task => (
-                  <div 
-                    key={task.id} 
-                    className={`flex items-center gap-4 rounded-2xl border p-4 transition-all ${task.completed ? "bg-slate-50 border-slate-100 opacity-60" : "bg-white border-slate-100 hover:border-sky-200 shadow-sm"}`}
-                  >
-                    <button onClick={() => toggleTask(task.id)} className={`${task.completed ? "text-emerald-500" : "text-slate-300 hover:text-sky-500"} transition-colors`}>
-                      {task.completed ? <CheckCircle2 className="h-6 w-6" /> : <Circle className="h-6 w-6" />}
-                    </button>
-                    <div className="flex-1">
-                      <h3 className={`font-bold ${task.completed ? "text-slate-500 line-through" : "text-slate-800"}`}>
-                        {task.title}
-                      </h3>
-                      {!task.completed && (
-                        <p className="text-xs font-medium text-slate-400 mt-0.5">{task.course} • {task.deadline}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
+            </div>
           </div>
-
-          {/* BAGIAN KANAN: TIMER BELAJAR */}
-          <div className="lg:col-span-1">
-            <section className="sticky top-10 flex flex-col items-center justify-center overflow-hidden rounded-3xl border border-white/80 bg-white/70 p-8 text-center shadow-lg backdrop-blur-xl">
-              <div className="absolute top-0 right-0 h-40 w-40 translate-x-1/3 -translate-y-1/3 rounded-full bg-teal-100/60 blur-3xl" />
-              
-              <div className="flex items-center gap-2 mb-6 text-teal-600">
-                <Clock className="h-5 w-5" />
-                <span className="text-sm font-bold tracking-widest uppercase">Focus Timer</span>
-              </div>
-
-              {/* Angka Timer */}
-              <div className="relative flex h-48 w-48 items-center justify-center rounded-full border-4 border-teal-50 bg-white shadow-inner mb-8">
-                <h4 className="text-5xl font-black text-teal-700 tracking-tighter">
-                  {formatTime(timeLeft)}
-                </h4>
-                {/* Animasi lingkaran luar saat timer berjalan */}
-                {isRunning && (
-                  <motion.div 
-                    className="absolute inset-0 rounded-full border-4 border-teal-400 border-t-transparent"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                  />
-                )}
-              </div>
-
-              {/* Kontrol Timer */}
-              <div className="flex items-center gap-4 w-full">
-                <button 
-                  onClick={toggleTimer} 
-                  className={`flex-1 flex items-center justify-center gap-2 rounded-2xl py-4 font-bold text-white shadow-lg transition-all active:scale-95 ${isRunning ? "bg-orange-400 shadow-orange-200 hover:bg-orange-500" : "bg-teal-500 shadow-teal-200 hover:bg-teal-600"}`}
-                >
-                  {isRunning ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-                  {isRunning ? "Pause" : "Start Focus"}
-                </button>
-                <button 
-                  onClick={resetTimer}
-                  className="flex h-[56px] w-[56px] items-center justify-center rounded-2xl bg-slate-100 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-700 active:scale-95"
-                >
-                  <RotateCcw className="h-5 w-5" />
-                </button>
-              </div>
-
-              <p className="mt-6 text-xs font-medium text-slate-400">
-                Tip: Work for 25 mins, then take a 5 min break.
-              </p>
-            </section>
-          </div>
-
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatCard({ label, count, color, bg }: any) {
+  return (
+    <div className={`${bg} border border-white px-5 py-2.5 rounded-2xl shadow-sm min-w-[100px]`}>
+      <p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">{label}</p>
+      <p className={`text-xl font-black ${color}`}>{count}</p>
+    </div>
+  );
+}
+
+function TabButton({ active, onClick, label, icon }: any) {
+  return (
+    <button onClick={onClick} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${active ? 'bg-sky-600 text-white shadow-md' : 'text-slate-500 hover:bg-white'}`}>
+      {icon} {label}
+    </button>
+  );
+}
+
+function TaskCard({ task, type }: { task: any, type: TabType }) {
+  const isMissing = type === 'missing';
+  const isDone = type === 'completed';
+  return (
+    <motion.div whileHover={{ scale: 1.01 }} className={`group bg-white p-5 rounded-[28px] border-2 transition-all flex items-center gap-5 ${isMissing ? 'border-rose-100 hover:border-rose-300' : isDone ? 'border-emerald-100 hover:border-emerald-200' : 'border-white hover:border-sky-200 shadow-sm'}`}>
+      <div className={`h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 ${isMissing ? 'bg-rose-50 text-rose-500' : isDone ? 'bg-emerald-50 text-emerald-500' : 'bg-sky-50 text-sky-500'}`}>
+        {isDone ? <Trophy size={24} /> : isMissing ? <AlertOctagon size={24} /> : <CalendarDays size={24} />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${isMissing ? 'bg-rose-100 text-rose-600' : isDone ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-100 text-sky-600'}`}>
+            {task.course}
+          </span>
+          {task.grade && <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1"><Award size={12} className="text-yellow-500"/> {task.grade}</span>}
+        </div>
+        <h3 className="font-bold text-slate-800 text-base leading-tight truncate">{task.title}</h3>
+        <div className="flex items-center gap-3 mt-2">
+          <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5">
+            <Clock size={13} /> {isDone ? 'Finished' : task.deadlineStr}
+          </span>
+        </div>
+      </div>
+      <a href={task.link} target="_blank" className={`h-12 w-12 rounded-xl flex items-center justify-center transition-all ${isMissing ? 'bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white' : 'bg-slate-50 text-slate-400 hover:bg-sky-600 hover:text-white'}`}>
+        <ArrowUpRight size={20} />
+      </a>
+    </motion.div>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="p-12 text-center bg-white/30 rounded-[32px] border-2 border-dashed border-white/80">
+      <p className="text-slate-400 text-sm font-bold italic">{message}</p>
     </div>
   );
 }
