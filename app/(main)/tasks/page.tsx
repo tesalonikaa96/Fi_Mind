@@ -3,13 +3,23 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Play, Pause, RotateCcw, AlertOctagon, Flame, 
-  CheckCircle2, Circle, Clock, ListTodo, Plus, 
-  Loader2, ExternalLink, Trophy, CalendarDays,
-  CheckCircle, ArrowUpRight, ChevronRight, Award, BookOpen
+  Clock, Trophy, CalendarDays, CheckCircle, 
+  ArrowUpRight, Award, BookOpen, Folder, Loader2 // <-- Loader2 sudah ditambahkan di sini
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 type TabType = 'active' | 'missing' | 'completed';
+
+const groupTasksByCourse = (tasks: any[]) => {
+  return tasks.reduce((groups, task) => {
+    const courseName = task.course;
+    if (!groups[courseName]) {
+      groups[courseName] = [];
+    }
+    groups[courseName].push(task);
+    return groups;
+  }, {} as Record<string, any[]>);
+};
 
 export default function FocusFlowPage() {
   const [activeTab, setActiveTab] = useState<TabType>('active');
@@ -91,6 +101,9 @@ export default function FocusFlowPage() {
   const activeTasks = tasks.filter(t => t.status === "active");
   const completedTasks = tasks.filter(t => t.status === "completed");
 
+  const currentTasks = activeTab === 'active' ? activeTasks : activeTab === 'missing' ? missingTasks : completedTasks;
+  const groupedTasks = groupTasksByCourse(currentTasks);
+
   return (
     <div className="min-h-screen p-4 md:p-8 font-sans pb-24 bg-[#F0F9FF]">
       <div className="mx-auto max-w-7xl">
@@ -108,7 +121,8 @@ export default function FocusFlowPage() {
           </div>
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-12">
+        <div className="grid gap-8 lg:grid-cols-12 items-start">
+          
           <div className="lg:col-span-8">
             <div className="mb-6 flex gap-2 p-1.5 bg-white/50 backdrop-blur-md rounded-2xl border border-white/80 w-fit shadow-sm">
               <TabButton active={activeTab === 'active'} onClick={() => setActiveTab('active')} label="Active" icon={<Flame size={16} />} />
@@ -122,29 +136,44 @@ export default function FocusFlowPage() {
                 <p className="text-sky-700 font-bold">Updating Classroom...</p>
               </div>
             ) : (
-              <motion.div 
-                key={activeTab}
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className="space-y-4"
-              >
-                {activeTab === 'active' && (
-                  activeTasks.length > 0 ? activeTasks.map(t => <TaskCard key={t.id} task={t} type="active" />) 
-                  : <EmptyState message="No active tasks. Time to rest? ☕" />
-                )}
-                {activeTab === 'missing' && (
-                  missingTasks.length > 0 ? missingTasks.map(t => <TaskCard key={t.id} task={t} type="missing" />) 
-                  : <EmptyState message="Nothing missing! You're on fire! 🔥" />
-                )}
-                {activeTab === 'completed' && (
-                  completedTasks.length > 0 ? completedTasks.map(t => <TaskCard key={t.id} task={t} type="completed" />) 
-                  : <EmptyState message="Complete a task to see it here. 🏆" />
-                )}
-              </motion.div>
+              <div className="max-h-[calc(100vh-250px)] overflow-y-auto pr-3 space-y-8 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-sky-200 [&::-webkit-scrollbar-thumb]:rounded-full">
+                <AnimatePresence mode="wait">
+                  <motion.div 
+                    key={activeTab}
+                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                    className="space-y-8 pb-10"
+                  >
+                    {Object.keys(groupedTasks).length > 0 ? (
+                      Object.entries(groupedTasks).map(([courseName, courseTasks]) => (
+                        <div key={courseName} className="space-y-3">
+                          <div className="flex items-center gap-2 ml-2 mb-4">
+                            <div className="bg-sky-100 p-1.5 rounded-lg text-sky-600">
+                              <Folder size={16} />
+                            </div>
+                            <h2 className="text-sm font-black text-slate-700 uppercase tracking-widest">{courseName}</h2>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            {/* <-- Perbaikan TypeScript ada di baris ini: (courseTasks as any[]).map((t: any) => ...) --> */}
+                            {(courseTasks as any[]).map((t: any) => <TaskCard key={t.id} task={t} type={activeTab} />)}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <EmptyState message={
+                        activeTab === 'active' ? "No active tasks. Time to rest? ☕" : 
+                        activeTab === 'missing' ? "Nothing missing! You're on fire! 🔥" : 
+                        "Complete a task to see it here. 🏆"
+                      } />
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
             )}
           </div>
 
-          <div className="lg:col-span-4">
-            <div className="sticky top-10 space-y-6">
+          <div className="lg:col-span-4 self-start sticky top-10">
+            <div className="space-y-6">
               <section className="bg-white rounded-[40px] p-8 shadow-xl shadow-sky-100 border border-white flex flex-col items-center">
                 <div className="flex items-center gap-2 mb-8 text-sky-400 font-bold text-[10px] uppercase tracking-widest">
                   <Clock size={14} /> Focus Session
@@ -155,7 +184,7 @@ export default function FocusFlowPage() {
                     <motion.circle 
                       cx="104" cy="104" r="96" stroke="#0EA5E9" strokeWidth="8" fill="transparent" 
                       strokeDasharray="603"
-                      animate={{ strokeDashoffset: 603 - (603 * (timeLeft / (25 * 60))) }}
+                      animate={{ strokeDashoffset: isNaN(timeLeft) ? 603 : 603 - (603 * (timeLeft / (25 * 60))) }}
                       transition={{ duration: 1 }}
                     />
                   </svg>
@@ -215,9 +244,6 @@ function TaskCard({ task, type }: { task: any, type: TabType }) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${isMissing ? 'bg-rose-100 text-rose-600' : isDone ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-100 text-sky-600'}`}>
-            {task.course}
-          </span>
           {task.grade && <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1"><Award size={12} className="text-yellow-500"/> {task.grade}</span>}
         </div>
         <h3 className="font-bold text-slate-800 text-base leading-tight truncate">{task.title}</h3>
