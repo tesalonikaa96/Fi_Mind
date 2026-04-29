@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, ArrowRight, Mail, User, ShieldCheck } from "lucide-react";
+import { X, ArrowRight, Mail, User, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabase"; 
+import Link from "next/link"; // Tambahkan import Link
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -28,7 +29,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Logging in with:", { username, email });
-    // Nanti di sini kamu bisa tambah logic login manual ke Supabase
+    // Logic login manual ke Supabase
   };
 
   return (
@@ -46,17 +47,20 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               initial={{ opacity: 0, scale: 0.9, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 30 }}
-              className="w-full max-w-md rounded-[40px] border border-white/20 bg-white shadow-2xl pointer-events-auto relative overflow-hidden"
+              className="w-full max-w-md rounded-[40px] border border-white/20 bg-white shadow-2xl pointer-events-auto relative overflow-hidden flex flex-col max-h-[90vh]"
             >
-              <div className="h-2 w-full bg-gradient-to-r from-sky-400 via-indigo-500 to-purple-500" />
+              <div className="h-2 w-full shrink-0 bg-gradient-to-r from-sky-400 via-indigo-500 to-purple-500" />
               
               <button onClick={onClose} className="absolute right-6 top-8 text-slate-300 hover:text-slate-600 transition-colors z-20">
                 <X size={24} />
               </button>
 
-              <div className="p-8 md:p-10 text-center">
-                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
-                  <Sparkles size={32} />
+              {/* Tambahkan overflow-y-auto agar modal bisa di-scroll jika layar kekecilan */}
+              <div className="p-8 md:p-10 text-center overflow-y-auto custom-scrollbar">
+                
+                {/* --- LOGO UPDATE --- */}
+                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-50/50 shadow-inner">
+                  <img src="/icon.png" alt="Fi-Mind Logo" className="h-10 w-10 object-contain drop-shadow-sm" />
                 </div>
 
                 <h2 className="text-3xl font-black text-slate-800 tracking-tighter">FI-Mind</h2>
@@ -92,16 +96,17 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                     </div>
                   </div>
 
+                  {/* --- BUTTON UPDATE --- */}
                   <button 
                     type="submit"
                     className="w-full bg-sky-600 py-4 rounded-2xl text-white font-bold text-sm shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all active:scale-[0.98] mt-2"
                   >
-                    Enter Sanctuary
+                    Join Us
                   </button>
                 </form>
 
                 {/* --- DIVIDER --- */}
-                <div className="relative my-8">
+                <div className="relative my-6">
                   <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
                   <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-[0.2em]"><span className="bg-white px-4 text-slate-300">or connect with</span></div>
                 </div>
@@ -115,15 +120,23 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   Continue with Google
                 </button>
 
-                <div className="mt-8 flex items-center justify-center gap-2 text-slate-300">
+                <div className="mt-6 flex items-center justify-center gap-2 text-slate-300">
                   <ShieldCheck size={14} />
                   <p className="text-[10px] font-bold uppercase tracking-widest">End-to-End Encryption</p>
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-6 text-center border-t border-slate-100">
-                <p className="text-[11px] text-slate-400 font-medium">
-                  By joining FI-Mind, you agree to our <span className="text-sky-600 cursor-pointer">Privacy Policy</span>.
+              {/* --- REGISTER LINK UPDATE --- */}
+              <div className="bg-slate-50 p-6 text-center border-t border-slate-100 shrink-0">
+                <p className="text-sm text-slate-500 font-medium">
+                  Don&apos;t have an account?{" "}
+                  <Link 
+                    href="/register" 
+                    onClick={onClose} 
+                    className="text-sky-600 font-bold hover:text-sky-700 hover:underline transition-all"
+                  >
+                    Register here
+                  </Link>
                 </p>
               </div>
             </motion.div>

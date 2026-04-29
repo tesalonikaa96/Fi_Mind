@@ -56,7 +56,7 @@ export default function Sidebar() {
           Settings
         </Link>
         <Link
-          href="/login"
+          href="/"
           className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-all"
         >
           <LogOut className="h-5 w-5 text-red-400" />
