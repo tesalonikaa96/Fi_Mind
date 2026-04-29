@@ -1,5 +1,5 @@
 "use client";
-import Sidebar from "@/components/layout/Sidebar"; // Pastikan path ini benar
+import Sidebar from "@/components/layout/Sidebar";
 
 export default function MainLayout({
   children,
@@ -7,11 +7,8 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      {/* Sidebar akan selalu muncul di sebelah kiri */}
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-500">
       <Sidebar />
-      
-      {/* Area Konten Utama (Dashboard, Tasks, dll) */}
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>

@@ -10,12 +10,12 @@ import Link from "next/link";
 
 // ── DATA KONFIGURASI ──
 const moodOptions = [
-  { emoji: "🤩", label: "Energized", color: "bg-yellow-100 text-yellow-600 border-yellow-200" },
-  { emoji: "😌", label: "Calm", color: "bg-sky-100 text-sky-600 border-sky-200" },
-  { emoji: "😐", label: "Okay", color: "bg-slate-100 text-slate-600 border-slate-200" },
-  { emoji: "🥱", label: "Tired", color: "bg-indigo-100 text-indigo-500 border-indigo-200" },
-  { emoji: "😵‍💫", label: "Burnout", color: "bg-orange-100 text-orange-500 border-orange-200" },
-  { emoji: "😰", label: "Anxious", color: "bg-teal-100 text-teal-600 border-teal-200" },
+  { emoji: "🤩", label: "Energized", color: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-700/50" },
+  { emoji: "😌", label: "Calm", color: "bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400 border-sky-200 dark:border-sky-700/50" },
+  { emoji: "😐", label: "Okay", color: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700" },
+  { emoji: "🥱", label: "Tired", color: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 border-indigo-200 dark:border-indigo-700/50" },
+  { emoji: "😵‍💫", label: "Burnout", color: "bg-orange-100 dark:bg-orange-900/30 text-orange-500 dark:text-orange-400 border-orange-200 dark:border-orange-700/50" },
+  { emoji: "😰", label: "Anxious", color: "bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 border-teal-200 dark:border-teal-700/50" },
 ];
 
 const introEmojis = ["🤩", "😌", "😐", "🥱", "😵‍💫", "😰"];
@@ -33,17 +33,14 @@ export default function DashboardPage() {
   const [currentEmojiIdx, setCurrentEmojiIdx] = useState(0);
   const [randomQuote, setRandomQuote] = useState(dailyQuotes[0]);
   
-  // ── STATE UNTUK CLASSROOM ──
   const [tasks, setTasks] = useState<any[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [userName, setUserName] = useState("Tesalonika");
 
-  // ── 1. OTOMATIS AMBIL TUGAS SAAT MOUNT ──
   useEffect(() => {
     const initDashboard = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
-      // Ambil nama user dari profil Google
       if (session?.user?.user_metadata?.full_name) {
         setUserName(session.user.user_metadata.full_name.split(' ')[0]);
       }
@@ -67,7 +64,6 @@ export default function DashboardPage() {
 
       if (courseData.courses) {
         const allTasks: any[] = [];
-        // Ambil dari 3 kelas teratas untuk performa cepat
         for (const course of courseData.courses.slice(0, 3)) {
           const taskRes = await fetch(`https://classroom.googleapis.com/v1/courses/${course.id}/courseWork`, {
             headers: { Authorization: `Bearer ${token}` }
@@ -102,29 +98,29 @@ export default function DashboardPage() {
     <>
       <AnimatePresence>
         {showIntro && (
-          <motion.div exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white px-6 text-center backdrop-blur-3xl">
+          <motion.div exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white dark:bg-slate-900 px-6 text-center backdrop-blur-3xl transition-colors duration-500">
             <motion.span key={currentEmojiIdx} initial={{ scale: 0.5 }} animate={{ scale: 1 }} className="text-[120px]">{introEmojis[currentEmojiIdx]}</motion.span>
-            <h2 className="mt-8 text-3xl font-black text-slate-800 tracking-tighter">Setting up your sanctuary...</h2>
+            <h2 className="mt-8 text-3xl font-black text-slate-800 dark:text-white tracking-tighter">Setting up your sanctuary...</h2>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="min-h-screen p-6 md:p-10 pb-24 bg-[#F0F9FF]">
+      <div className="min-h-screen p-6 md:p-10 pb-24 bg-[#F0F9FF] dark:bg-slate-900 transition-colors duration-500">
         <div className="mx-auto max-w-3xl space-y-8">
           
           {/* HEADER */}
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-            <h1 className="text-4xl font-black text-slate-800 tracking-tight">
+            <h1 className="text-4xl font-black text-slate-800 dark:text-white tracking-tight transition-colors">
               Welcome back, {userName}. 🌙
             </h1>
-            <p className="mt-2 text-slate-600 font-medium">
+            <p className="mt-2 text-slate-600 dark:text-slate-400 font-medium transition-colors">
               Everything is synced. You&apos;re in control now.
             </p>
           </motion.div>
 
           {/* MOOD CHECK-IN */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-[40px] border border-white bg-white/70 p-8 shadow-xl shadow-sky-100/50 backdrop-blur-xl">
-            <h2 className="mb-8 flex items-center gap-2 font-bold text-slate-800 text-lg uppercase tracking-widest text-[11px]">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-[40px] border border-white dark:border-slate-800 bg-white/70 dark:bg-slate-800/70 p-8 shadow-xl shadow-sky-100/50 dark:shadow-none backdrop-blur-xl transition-all duration-500">
+            <h2 className="mb-8 flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200 text-lg uppercase tracking-widest text-[11px] transition-colors">
               <Sparkles className="h-4 w-4 text-sky-500" />
               How are you feeling right now?
             </h2>
@@ -133,7 +129,11 @@ export default function DashboardPage() {
                 <button
                   key={mood.label}
                   onClick={() => setSelectedMood(mood.label)}
-                  className={`flex flex-col items-center justify-center gap-3 rounded-[30px] border py-6 transition-all active:scale-95 ${selectedMood === mood.label ? mood.color + " border-sky-400 shadow-lg scale-105" : "bg-white border-slate-50 hover:border-sky-100"}`}
+                  className={`flex flex-col items-center justify-center gap-3 rounded-[30px] border py-6 transition-all duration-300 active:scale-95 ${
+                    selectedMood === mood.label 
+                      ? mood.color + " border-sky-400 dark:border-sky-500 shadow-lg scale-105" 
+                      : "bg-white dark:bg-slate-800 border-slate-50 dark:border-slate-700 hover:border-sky-100 dark:hover:border-sky-900 text-slate-800 dark:text-slate-300"
+                  }`}
                 >
                   <span className="text-3xl">{mood.emoji}</span>
                   <span className="text-[10px] font-black uppercase">{mood.label}</span>
@@ -143,34 +143,34 @@ export default function DashboardPage() {
 
             <AnimatePresence>
               {selectedMood && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8 pt-8 border-t border-slate-100">
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-700">
                   <div className="flex gap-3">
-                    <div className="bg-sky-50 p-4 rounded-3xl flex-1">
-                      <p className="text-xs font-bold text-sky-600 mb-1 uppercase tracking-wider">Quick Recommendation</p>
-                      <p className="text-sm text-slate-700 font-medium">You seem {selectedMood}. Try a 25-min focus session with a lo-fi beat.</p>
+                    <div className="bg-sky-50 dark:bg-sky-500/10 p-4 rounded-3xl flex-1 transition-colors">
+                      <p className="text-xs font-bold text-sky-600 dark:text-sky-400 mb-1 uppercase tracking-wider">Quick Recommendation</p>
+                      <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">You seem {selectedMood}. Try a 25-min focus session with a lo-fi beat.</p>
                     </div>
-                    <button className="bg-slate-900 text-white px-6 rounded-3xl text-sm font-bold hover:bg-sky-600 transition-colors">Start</button>
+                    <button className="bg-slate-900 dark:bg-sky-600 text-white px-6 rounded-3xl text-sm font-bold hover:bg-sky-600 dark:hover:bg-sky-500 transition-colors">Start</button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
           </motion.div>
 
-          {/* ── CLASSROOM OVERVIEW (REPLACED LOGIN BUTTON) ── */}
+          {/* ── CLASSROOM OVERVIEW ── */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-            <div className="rounded-[40px] bg-white p-8 shadow-xl shadow-sky-100/50 border border-white overflow-hidden relative">
+            <div className="rounded-[40px] bg-white dark:bg-slate-800 p-8 shadow-xl shadow-sky-100/50 dark:shadow-none border border-white dark:border-slate-700 overflow-hidden relative transition-colors duration-500">
               {/* Sync Badge */}
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center">
+                  <div className="h-10 w-10 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center transition-colors">
                     <CheckCircle className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="font-black text-slate-800 uppercase tracking-tighter">Classroom Synced</h3>
+                    <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tighter transition-colors">Classroom Synced</h3>
                     <p className="text-[10px] font-bold text-slate-400">Live updates from Google</p>
                   </div>
                 </div>
-                <button onClick={() => window.location.reload()} className="text-slate-300 hover:text-sky-500 transition-colors">
+                <button onClick={() => window.location.reload()} className="text-slate-300 dark:text-slate-500 hover:text-sky-500 dark:hover:text-sky-400 transition-colors">
                   <RefreshCw className="h-4 w-4" />
                 </button>
               </div>
@@ -184,12 +184,12 @@ export default function DashboardPage() {
                   </div>
                 ) : tasks.length > 0 ? (
                   tasks.map((task) => (
-                    <motion.div key={task.id} whileHover={{ x: 5 }} className="flex items-center justify-between p-5 bg-slate-50/50 rounded-[24px] border border-slate-50 group hover:border-sky-100 hover:bg-white transition-all">
+                    <motion.div key={task.id} whileHover={{ x: 5 }} className="flex items-center justify-between p-5 bg-slate-50/50 dark:bg-slate-700/30 rounded-[24px] border border-slate-50 dark:border-slate-700/50 group hover:border-sky-100 dark:hover:border-sky-900 hover:bg-white dark:hover:bg-slate-700 transition-all">
                       <div className="flex-1 min-w-0">
-                        <p className="text-[9px] font-black text-sky-600 uppercase mb-0.5">{task.courseName}</p>
-                        <h5 className="font-bold text-slate-800 text-sm truncate pr-4">{task.title}</h5>
+                        <p className="text-[9px] font-black text-sky-600 dark:text-sky-400 uppercase mb-0.5">{task.courseName}</p>
+                        <h5 className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate pr-4 transition-colors">{task.title}</h5>
                       </div>
-                      <a href={task.link} target="_blank" className="h-10 w-10 rounded-xl bg-white flex items-center justify-center text-slate-400 shadow-sm border border-slate-100 group-hover:text-sky-500 group-hover:border-sky-100 transition-all">
+                      <a href={task.link} target="_blank" className="h-10 w-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 shadow-sm border border-slate-100 dark:border-slate-700 group-hover:text-sky-500 dark:group-hover:text-sky-400 group-hover:border-sky-100 dark:group-hover:border-sky-900 transition-all">
                         <ArrowRight className="h-4 w-4" />
                       </a>
                     </motion.div>
@@ -201,19 +201,19 @@ export default function DashboardPage() {
                 )}
               </div>
 
-<Link href="/tasks" className="mt-8 block w-full text-center py-4 bg-slate-900 rounded-[24px] text-white text-xs font-black uppercase tracking-widest hover:bg-sky-600 transition-all shadow-lg shadow-slate-200">
-  Go to Focus Flow
-</Link>
+              <Link href="/tasks" className="mt-8 block w-full text-center py-4 bg-slate-900 dark:bg-sky-600 rounded-[24px] text-white text-xs font-black uppercase tracking-widest hover:bg-sky-600 dark:hover:bg-sky-500 transition-all shadow-lg shadow-slate-200 dark:shadow-none">
+                Go to Focus Flow
+              </Link>
             </div>
           </motion.div>
 
           {/* RANDOM QUOTES */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center text-center p-8">
-            <Quote className="mb-6 h-8 w-8 text-sky-300 opacity-50" />
-            <p className="text-xl italic text-slate-700 leading-relaxed font-serif px-4">
+            <Quote className="mb-6 h-8 w-8 text-sky-300 dark:text-sky-900 opacity-50" />
+            <p className="text-xl italic text-slate-700 dark:text-slate-300 leading-relaxed font-serif px-4 transition-colors">
               &quot;{randomQuote.text}&quot;
             </p>
-            <p className="mt-6 text-[10px] font-black text-sky-500 uppercase tracking-[0.3em]">
+            <p className="mt-6 text-[10px] font-black text-sky-500 dark:text-sky-400 uppercase tracking-[0.3em] transition-colors">
               — {randomQuote.author}
             </p>
           </motion.div>
