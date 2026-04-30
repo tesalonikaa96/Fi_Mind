@@ -18,8 +18,6 @@ const moodOptions = [
   { emoji: "😰", label: "Anxious", color: "bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 border-teal-200 dark:border-teal-700/50" },
 ];
 
-const introEmojis = ["🤩", "😌", "😐", "🥱", "😵‍💫", "😰"];
-
 const dailyQuotes = [
   { text: "We read to know we are not alone.", author: "C.S. Lewis" },
   { text: "There is no greater agony than bearing an untold story inside you.", author: "Maya Angelou" },
@@ -29,56 +27,22 @@ const dailyQuotes = [
 
 export default function DashboardPage() {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
-  const [showIntro, setShowIntro] = useState(false); // Default false
-  const [currentEmojiIdx, setCurrentEmojiIdx] = useState(0);
   const [randomQuote, setRandomQuote] = useState(dailyQuotes[0]);
+  
+  // State untuk Intro Dinamis
+  const [showIntro, setShowIntro] = useState(false);
+  const [introEmoji, setIntroEmoji] = useState("✨");
+  const [introText, setIntroText] = useState("Syncing your sanctuary...");
   
   const [tasks, setTasks] = useState<any[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [userName, setUserName] = useState("Tesalonika");
 
-  useEffect(() => {
-    // ── LOGIKA INTRO 3 DETIK (HANYA SEKALI PER LOGIN) ──
-    const hasSeenIntro = sessionStorage.getItem("hasSeenIntro");
-    
-    if (!hasSeenIntro) {
-      setShowIntro(true);
-      const emojiInterval = setInterval(() => {
-        setCurrentEmojiIdx((prev) => (prev + 1) % introEmojis.length);
-      }, 500); // Ganti emoji lebih cepat agar dramatis
-      
-      const introTimeout = setTimeout(() => {
-        setShowIntro(false);
-        sessionStorage.setItem("hasSeenIntro", "true"); // Tandai sudah lihat
-      }, 3000); // ── DURASI 3 DETIK ──
-
-      return () => {
-        clearInterval(emojiInterval);
-        clearTimeout(introTimeout);
-      };
-    }
-  }, []);
-
-  useEffect(() => {
-    const initDashboard = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user?.user_metadata?.full_name) {
-        setUserName(session.user.user_metadata.full_name.split(' ')[0]);
-      }
-
-      if (session?.provider_token) {
-        fetchClassroomTasks(session.provider_token);
-      } else {
-        setIsLoadingTasks(false);
-      }
-    };
-    initDashboard();
-    setRandomQuote(dailyQuotes[Math.floor(Math.random() * dailyQuotes.length)]);
-  }, []);
-
+  // ── FUNGSI FETCH TUGAS DAN CEK MISSING ──
   const fetchClassroomTasks = async (token: string) => {
     setIsLoadingTasks(true);
+    let isMissingFound = false;
+
     try {
       const courseRes = await fetch("https://classroom.googleapis.com/v1/courses?courseStates=ACTIVE", {
         headers: { Authorization: `Bearer ${token}` }
@@ -86,29 +50,93 @@ export default function DashboardPage() {
       const courseData = await courseRes.json();
 
       if (courseData.courses) {
-        const allTasks: any[] = [];
-        for (const course of courseData.courses.slice(0, 3)) {
+        // Tarik data tugas & submission secara bersamaan
+        const allTasksPromises = courseData.courses.map(async (course: any) => {
           const taskRes = await fetch(`https://classroom.googleapis.com/v1/courses/${course.id}/courseWork`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           const taskData = await taskRes.json();
-          if (taskData.courseWork) {
-            taskData.courseWork.forEach((t: any) => allTasks.push({ 
-              id: t.id, 
-              title: t.title, 
+          if (!taskData.courseWork) return [];
+
+          const subRes = await fetch(`https://classroom.googleapis.com/v1/courses/${course.id}/courseWork/-/studentSubmissions`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const subData = await subRes.json();
+
+          return taskData.courseWork.map((t: any) => {
+            const submission = subData.studentSubmissions?.find((s: any) => s.courseWorkId === t.id);
+            const isTurnedIn = submission?.state === "TURNED_IN" || submission?.state === "RETURNED";
+            const dueDate = t.dueDate ? new Date(t.dueDate.year, t.dueDate.month - 1, t.dueDate.day) : null;
+            
+            // Cek apakah tugas lewat tenggat dan belum dikumpul
+            const isOverdue = dueDate ? dueDate < new Date() : false;
+            if (isOverdue && !isTurnedIn) {
+              isMissingFound = true;
+            }
+
+            return {
+              id: t.id,
+              title: t.title,
               courseName: course.name,
-              link: t.alternateLink 
-            }));
-          }
-        }
-        setTasks(allTasks.slice(0, 4)); 
+              link: t.alternateLink,
+              status: isTurnedIn ? "completed" : (isOverdue ? "missing" : "active")
+            };
+          });
+        });
+
+        const results = await Promise.all(allTasksPromises);
+        const flatTasks = results.flat().filter(t => t !== undefined);
+        
+        // Hanya tampilkan tugas yang belum selesai di Dashboard
+        setTasks(flatTasks.filter(t => t.status !== "completed").slice(0, 4)); 
       }
     } catch (err) {
       console.error("Gagal sinkronisasi Classroom:", err);
     } finally {
       setIsLoadingTasks(false);
     }
+    
+    return isMissingFound;
   };
+
+  // ── LOGIKA INTRO UTAMA ──
+  useEffect(() => {
+    const initDashboard = async () => {
+      const hasSeenIntro = sessionStorage.getItem("hasSeenIntro");
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user?.user_metadata?.full_name) {
+        setUserName(session.user.user_metadata.full_name.split(' ')[0]);
+      }
+
+      // Tampilkan layar loading awal jika belum pernah lihat
+      if (!hasSeenIntro) {
+        setShowIntro(true);
+      }
+
+      let hasMissing = false;
+      if (session?.provider_token) {
+        hasMissing = await fetchClassroomTasks(session.provider_token);
+      } else {
+        setIsLoadingTasks(false);
+      }
+
+      if (!hasSeenIntro) {
+        // Ganti Emoji & Teks berdasarkan hasil tarikan Classroom
+        setIntroEmoji(hasMissing ? "😰" : "🤩");
+        setIntroText(hasMissing ? "Missing tasks detected. Stay strong!" : "You're all caught up! Great job.");
+        
+        // Tunggu 3 detik lalu hilangkan intro
+        setTimeout(() => {
+          setShowIntro(false);
+          sessionStorage.setItem("hasSeenIntro", "true");
+        }, 3000);
+      }
+    };
+
+    initDashboard();
+    setRandomQuote(dailyQuotes[Math.floor(Math.random() * dailyQuotes.length)]);
+  }, []);
 
   return (
     <>
@@ -125,17 +153,22 @@ export default function DashboardPage() {
               className="relative"
             >
               <div className="absolute inset-0 bg-sky-400/20 blur-3xl rounded-full" />
-              <motion.span key={currentEmojiIdx} className="relative text-[120px] block">
-                {introEmojis[currentEmojiIdx]}
+              <motion.span 
+                key={introEmoji} // Akan animasi pop-up saat emoji berubah
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="relative text-[120px] block"
+              >
+                {introEmoji}
               </motion.span>
             </motion.div>
             <motion.h2 
+              key={introText}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="mt-8 text-3xl font-black text-slate-800 dark:text-white tracking-tighter"
+              className="mt-8 text-2xl font-black text-slate-800 dark:text-white tracking-tight"
             >
-              Protect your <span className="text-sky-500">peace.</span>
+              {introText}
             </motion.h2>
           </motion.div>
         )}
@@ -220,7 +253,9 @@ export default function DashboardPage() {
                   tasks.map((task) => (
                     <motion.div key={task.id} whileHover={{ x: 5 }} className="flex items-center justify-between p-5 bg-slate-50/50 dark:bg-slate-700/30 rounded-[24px] border border-slate-50 dark:border-slate-700/50 group hover:border-sky-100 dark:hover:border-sky-900 hover:bg-white dark:hover:bg-slate-700 transition-all">
                       <div className="flex-1 min-w-0">
-                        <p className="text-[9px] font-black text-sky-600 dark:text-sky-400 uppercase mb-0.5">{task.courseName}</p>
+                        <p className={`text-[9px] font-black uppercase mb-0.5 ${task.status === 'missing' ? 'text-rose-500' : 'text-sky-600 dark:text-sky-400'}`}>
+                          {task.courseName} {task.status === 'missing' && "• OVERDUE"}
+                        </p>
                         <h5 className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate pr-4 transition-colors">{task.title}</h5>
                       </div>
                       <a href={task.link} target="_blank" className="h-10 w-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 shadow-sm border border-slate-100 dark:border-slate-700 group-hover:text-sky-500 dark:group-hover:text-sky-400 group-hover:border-sky-100 dark:group-hover:border-sky-900 transition-all">
