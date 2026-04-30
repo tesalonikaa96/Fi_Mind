@@ -4,7 +4,7 @@ import {
   TrendingUp, GraduationCap, Briefcase, Award, 
   Map, Search, ArrowRight, Star, ChevronDown, 
   Target, MessageSquare, X, Send 
-} from "lucide-react"; // Semua ikon sudah ditambahkan di sini
+} from "lucide-react"; 
 import { motion, AnimatePresence } from "framer-motion";
 
 // ── DATA MOCK UNTUK 6 PILIHAN ──
@@ -102,6 +102,9 @@ export default function CareerPage() {
   const [isInterviewOpen, setIsInterviewOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
   const [chatHistory, setChatHistory] = useState<{role: string, text: string}[]>([]);
+  
+  // State baru untuk mengecek apakah AI sedang berpikir
+  const [isTyping, setIsTyping] = useState(false);
 
   const currentData = CAREER_DATA[selectedMajor];
 
@@ -115,18 +118,47 @@ export default function CareerPage() {
     ]);
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  // ── LOGIKA BARU MENGHUBUNGKAN KE GEMINI API ──
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatMessage.trim()) return;
-    const newHistory = [...chatHistory, { role: "user", text: chatMessage }];
-    setChatHistory(newHistory);
+  
+    const userMsg = chatMessage;
+    
+    // 1. Masukkan pesan user ke layar dan mulai animasi loading
+    setChatHistory(prev => [...prev, { role: "user", text: userMsg }]);
     setChatMessage("");
-    setTimeout(() => {
+    setIsTyping(true);
+  
+    try {
+      // 2. Panggil API Route (Gemini)
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: userMsg,
+          major: selectedMajor,
+          role: currentData.performance.topMatch
+        }),
+      });
+  
+      const data = await res.json();
+  
+      // 3. Masukkan balasan AI ke layar
+      if (data.reply) {
+        setChatHistory(prev => [...prev, { role: "ai", text: data.reply }]);
+      } else {
+        throw new Error("No reply");
+      }
+    } catch (error) {
       setChatHistory(prev => [...prev, { 
         role: "ai", 
-        text: "That's a solid answer! Remember to focus on the impact your work had. Let's try another question..." 
+        text: "Maaf, koneksi saya sedang terganggu. Bisa diulangi jawabannya?" 
       }]);
-    }, 1000);
+    } finally {
+      // Matikan animasi loading
+      setIsTyping(false);
+    }
   };
 
   return (
@@ -268,15 +300,33 @@ export default function CareerPage() {
                     </div>
                   </div>
                 ))}
+                
+                {/* ── INDIKATOR TYPING AI ── */}
+                {isTyping && (
+                  <div className="flex justify-start">
+                    <div className="bg-white border border-slate-200 text-slate-800 p-4 rounded-2xl rounded-tl-none shadow-sm flex gap-1 items-center h-12">
+                      <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></span>
+                      <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></span>
+                      <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <form onSubmit={handleSendMessage} className="p-4 bg-white border-t border-slate-100 flex gap-2">
                 <input 
-                  type="text" value={chatMessage} onChange={(e) => setChatMessage(e.target.value)}
+                  type="text" 
+                  value={chatMessage} 
+                  onChange={(e) => setChatMessage(e.target.value)}
                   placeholder="Type your answer..."
-                  className="flex-1 bg-slate-100 border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-sky-500 text-slate-800"
+                  disabled={isTyping} // Matikan input saat AI sedang mikir
+                  className="flex-1 bg-slate-100 border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-sky-500 text-slate-800 disabled:opacity-50"
                 />
-                <button type="submit" className="bg-sky-600 text-white p-3 rounded-xl hover:bg-sky-700 transition-colors">
+                <button 
+                  type="submit" 
+                  disabled={isTyping}
+                  className="bg-sky-600 text-white p-3 rounded-xl hover:bg-sky-700 transition-colors disabled:opacity-50"
+                >
                   <Send className="w-5 h-5" />
                 </button>
               </form>
@@ -288,7 +338,7 @@ export default function CareerPage() {
   );
 }
 
-// Tambahkan komponen Bot ini jika belum ada (atau impor dari lucide)
+// Komponen ikon Bot
 function Bot({ className }: { className?: string }) {
   return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
 }

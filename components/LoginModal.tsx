@@ -1,9 +1,10 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ArrowRight, Mail, User, ShieldCheck } from "lucide-react";
+import { X, Mail, Lock, ShieldCheck, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase"; 
-import Link from "next/link"; // Tambahkan import Link
+import Link from "next/link";
+import { useRouter } from "next/navigation"; // Tambahkan ini untuk pindah halaman
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -11,14 +12,20 @@ interface LoginModalProps {
 }
 
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
+  const router = useRouter();
+  
+  // State untuk form login
   const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState(""); // Diubah dari username ke password
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(""); // Untuk menampilkan pesan error
 
+  // --- LOGIN GOOGLE ---
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        scopes: 'https://www.googleapis.com/auth/classroom.courses.readonly https://www.googleapis.com/auth/classroom.coursework.me.readonly https://www.googleapis.com/auth/classroom.student-submissions.me.readonly',
+        scopes: 'https://www.googleapis.com/auth/classroom.courses.readonly',
         queryParams: { access_type: 'offline', prompt: 'consent' },
         redirectTo: `${window.location.origin}/dashboard`,
       },
@@ -26,10 +33,35 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     if (error) console.error(error.message);
   };
 
-  const handleManualSubmit = (e: React.FormEvent) => {
+  // --- LOGIN MANUAL EMAIL & PASSWORD ---
+  const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Logging in with:", { username, email });
-    // Logic login manual ke Supabase
+    setIsLoading(true);
+    setErrorMsg("");
+
+    try {
+      // Perintah resmi Supabase untuk login
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Jika berhasil, tutup modal dan pergi ke dashboard
+      if (data.session) {
+        onClose();
+        router.push("/dashboard");
+      }
+    } catch (err: any) {
+      // Jika email/password salah, tampilkan pesan error
+      setErrorMsg("Email atau password salah. Coba lagi ya!");
+      console.error(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -55,10 +87,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 <X size={24} />
               </button>
 
-              {/* Tambahkan overflow-y-auto agar modal bisa di-scroll jika layar kekecilan */}
               <div className="p-8 md:p-10 text-center overflow-y-auto custom-scrollbar">
                 
-                {/* --- LOGO UPDATE --- */}
                 <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-50/50 shadow-inner">
                   <img src="/icon.png" alt="Fi-Mind Logo" className="h-10 w-10 object-contain drop-shadow-sm" />
                 </div>
@@ -66,22 +96,15 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 <h2 className="text-3xl font-black text-slate-800 tracking-tighter">FI-Mind</h2>
                 <p className="mt-2 text-slate-500 font-medium text-sm">Enter your details to access your sanctuary.</p>
 
-                {/* --- MANUAL FORM --- */}
-                <form onSubmit={handleManualSubmit} className="mt-8 space-y-4 text-left">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Username</label>
-                    <div className="relative">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                      <input 
-                        type="text" 
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        placeholder="tesatamba"
-                        className="w-full rounded-2xl border border-slate-100 bg-slate-50/50 py-4 pl-12 pr-4 text-sm outline-none transition-all focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-300"
-                      />
-                    </div>
+                {/* --- MENAMPILKAN ERROR JIKA ADA --- */}
+                {errorMsg && (
+                  <div className="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-500 text-xs font-bold">
+                    {errorMsg}
                   </div>
+                )}
 
+                {/* --- MANUAL FORM --- */}
+                <form onSubmit={handleManualSubmit} className="mt-6 space-y-4 text-left">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Email Address</label>
                     <div className="relative">
@@ -92,28 +115,45 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="tesa@example.com"
                         className="w-full rounded-2xl border border-slate-100 bg-slate-50/50 py-4 pl-12 pr-4 text-sm outline-none transition-all focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-300"
+                        required
                       />
                     </div>
                   </div>
 
-                  {/* --- BUTTON UPDATE --- */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                      <input 
+                        type="password" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full rounded-2xl border border-slate-100 bg-slate-50/50 py-4 pl-12 pr-4 text-sm outline-none transition-all focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-300"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* --- TOMBOL SUBMIT DINAMIS --- */}
                   <button 
                     type="submit"
-                    className="w-full bg-sky-600 py-4 rounded-2xl text-white font-bold text-sm shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all active:scale-[0.98] mt-2"
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-2 bg-sky-600 py-4 rounded-2xl text-white font-bold text-sm shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all active:scale-[0.98] mt-2 disabled:bg-sky-400 disabled:cursor-not-allowed"
                   >
-                    Join Us
+                    {isLoading ? <Loader2 size={18} className="animate-spin" /> : null}
+                    {isLoading ? "Connecting..." : "Join Us"}
                   </button>
                 </form>
 
-                {/* --- DIVIDER --- */}
                 <div className="relative my-6">
                   <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
                   <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-[0.2em]"><span className="bg-white px-4 text-slate-300">or connect with</span></div>
                 </div>
 
-                {/* --- SSO BUTTON --- */}
                 <button 
                   onClick={handleGoogleLogin}
+                  type="button"
                   className="group w-full flex items-center justify-center gap-3 rounded-2xl border border-slate-100 bg-white py-4 font-bold text-slate-700 transition-all hover:bg-slate-50 active:scale-95"
                 >
                   <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="h-5 w-5" alt="Google" />
@@ -126,7 +166,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 </div>
               </div>
 
-              {/* --- REGISTER LINK UPDATE --- */}
               <div className="bg-slate-50 p-6 text-center border-t border-slate-100 shrink-0">
                 <p className="text-sm text-slate-500 font-medium">
                   Don&apos;t have an account?{" "}

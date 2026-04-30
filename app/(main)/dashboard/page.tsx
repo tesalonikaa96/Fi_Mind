@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Sparkles, Quote, ArrowRight, ListTodo, CheckCircle, 
-  Loader2, Coffee, CheckSquare, GraduationCap, RefreshCw
+  Loader2, RefreshCw
 } from "lucide-react";
 import { supabase } from "@/lib/supabase"; 
 import Link from "next/link";
@@ -29,13 +29,35 @@ const dailyQuotes = [
 
 export default function DashboardPage() {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
-  const [showIntro, setShowIntro] = useState(true);
+  const [showIntro, setShowIntro] = useState(false); // Default false
   const [currentEmojiIdx, setCurrentEmojiIdx] = useState(0);
   const [randomQuote, setRandomQuote] = useState(dailyQuotes[0]);
   
   const [tasks, setTasks] = useState<any[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [userName, setUserName] = useState("Tesalonika");
+
+  useEffect(() => {
+    // ── LOGIKA INTRO 3 DETIK (HANYA SEKALI PER LOGIN) ──
+    const hasSeenIntro = sessionStorage.getItem("hasSeenIntro");
+    
+    if (!hasSeenIntro) {
+      setShowIntro(true);
+      const emojiInterval = setInterval(() => {
+        setCurrentEmojiIdx((prev) => (prev + 1) % introEmojis.length);
+      }, 500); // Ganti emoji lebih cepat agar dramatis
+      
+      const introTimeout = setTimeout(() => {
+        setShowIntro(false);
+        sessionStorage.setItem("hasSeenIntro", "true"); // Tandai sudah lihat
+      }, 3000); // ── DURASI 3 DETIK ──
+
+      return () => {
+        clearInterval(emojiInterval);
+        clearTimeout(introTimeout);
+      };
+    }
+  }, []);
 
   useEffect(() => {
     const initDashboard = async () => {
@@ -52,6 +74,7 @@ export default function DashboardPage() {
       }
     };
     initDashboard();
+    setRandomQuote(dailyQuotes[Math.floor(Math.random() * dailyQuotes.length)]);
   }, []);
 
   const fetchClassroomTasks = async (token: string) => {
@@ -87,20 +110,33 @@ export default function DashboardPage() {
     }
   };
 
-  useEffect(() => {
-    setRandomQuote(dailyQuotes[Math.floor(Math.random() * dailyQuotes.length)]);
-    const emojiInterval = setInterval(() => setCurrentEmojiIdx((prev) => (prev + 1) % introEmojis.length), 800);
-    const introTimeout = setTimeout(() => setShowIntro(false), 4000); 
-    return () => { clearInterval(emojiInterval); clearTimeout(introTimeout); };
-  }, []);
-
   return (
     <>
       <AnimatePresence>
         {showIntro && (
-          <motion.div exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white dark:bg-slate-900 px-6 text-center backdrop-blur-3xl transition-colors duration-500">
-            <motion.span key={currentEmojiIdx} initial={{ scale: 0.5 }} animate={{ scale: 1 }} className="text-[120px]">{introEmojis[currentEmojiIdx]}</motion.span>
-            <h2 className="mt-8 text-3xl font-black text-slate-800 dark:text-white tracking-tighter">Setting up your sanctuary...</h2>
+          <motion.div 
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, y: -20 }} 
+            className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-white dark:bg-slate-900 px-6 text-center transition-colors duration-500"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="relative"
+            >
+              <div className="absolute inset-0 bg-sky-400/20 blur-3xl rounded-full" />
+              <motion.span key={currentEmojiIdx} className="relative text-[120px] block">
+                {introEmojis[currentEmojiIdx]}
+              </motion.span>
+            </motion.div>
+            <motion.h2 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="mt-8 text-3xl font-black text-slate-800 dark:text-white tracking-tighter"
+            >
+              Protect your <span className="text-sky-500">peace.</span>
+            </motion.h2>
           </motion.div>
         )}
       </AnimatePresence>
@@ -159,7 +195,6 @@ export default function DashboardPage() {
           {/* ── CLASSROOM OVERVIEW ── */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <div className="rounded-[40px] bg-white dark:bg-slate-800 p-8 shadow-xl shadow-sky-100/50 dark:shadow-none border border-white dark:border-slate-700 overflow-hidden relative transition-colors duration-500">
-              {/* Sync Badge */}
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center transition-colors">
@@ -175,7 +210,6 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {/* Assignments List */}
               <div className="space-y-3">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Pending Tasks</h4>
                 {isLoadingTasks ? (

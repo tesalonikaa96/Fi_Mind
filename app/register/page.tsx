@@ -1,13 +1,22 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Mail, User, Lock, ShieldCheck } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Mail, User, Lock, ShieldCheck, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function RegisterPage() {
+  const router = useRouter();
+
+  // State untuk form
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  
+  // State untuk status
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   const handleGoogleRegister = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
@@ -21,15 +30,51 @@ export default function RegisterPage() {
     if (error) console.error(error.message);
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Registering with:", { username, email, password });
-    // Tambahkan logic Supabase signUp di sini nanti
+    setIsLoading(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    try {
+      // Perintah resmi Supabase untuk mendaftarkan user baru
+      const { data, error } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          data: {
+            full_name: username, // Menyimpan username ke dalam data profil
+          }
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Jika berhasil
+      setSuccessMsg("Account created successfully! You can now log in.");
+      
+      // Kosongkan form
+      setEmail("");
+      setUsername("");
+      setPassword("");
+
+      // Beri jeda sebentar lalu kembali ke halaman utama untuk login
+      setTimeout(() => {
+        router.push("/");
+      }, 2000);
+
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to create account.");
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#061828] flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Background Ornaments */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-sky-500/20 blur-[120px] rounded-full pointer-events-none" />
 
       <div className="w-full max-w-md bg-white rounded-[40px] shadow-2xl relative z-10 overflow-hidden border border-white/10">
@@ -47,6 +92,18 @@ export default function RegisterPage() {
               <p className="text-slate-500 text-sm font-medium">Start your academic journey today.</p>
             </div>
           </div>
+
+          {/* --- NOTIFIKASI ERROR / SUKSES --- */}
+          {errorMsg && (
+            <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-500 text-xs font-bold">
+              {errorMsg}
+            </div>
+          )}
+          {successMsg && (
+            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-600 text-xs font-bold">
+              {successMsg}
+            </div>
+          )}
 
           <form onSubmit={handleRegisterSubmit} className="space-y-4">
             <div className="space-y-1.5">
@@ -90,15 +147,18 @@ export default function RegisterPage() {
                   placeholder="••••••••"
                   className="w-full rounded-2xl border border-slate-100 bg-slate-50 py-4 pl-12 pr-4 text-sm outline-none focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-300 transition-all"
                   required
+                  minLength={6}
                 />
               </div>
             </div>
 
             <button 
               type="submit"
-              className="w-full bg-slate-900 py-4 rounded-2xl text-white font-bold text-sm shadow-lg shadow-slate-200 hover:bg-sky-600 transition-all active:scale-[0.98] mt-4"
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2 bg-slate-900 py-4 rounded-2xl text-white font-bold text-sm shadow-lg shadow-slate-200 hover:bg-sky-600 transition-all active:scale-[0.98] mt-4 disabled:bg-slate-400 disabled:cursor-not-allowed"
             >
-              Create Account
+              {isLoading ? <Loader2 size={18} className="animate-spin" /> : null}
+              {isLoading ? "Creating..." : "Create Account"}
             </button>
           </form>
 
@@ -109,6 +169,7 @@ export default function RegisterPage() {
 
           <button 
             onClick={handleGoogleRegister}
+            type="button"
             className="group w-full flex items-center justify-center gap-3 rounded-2xl border border-slate-100 bg-white py-4 font-bold text-slate-700 transition-all hover:bg-slate-50 active:scale-95"
           >
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="h-5 w-5" alt="Google" />

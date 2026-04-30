@@ -1,34 +1,26 @@
-import { NextResponse } from "next/server";
+// app/api/chat/route.ts
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { NextResponse } from 'next/server';
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export async function POST(req: Request) {
   try {
-    const { messages } = await req.json();
+    const { message, major, role } = await req.json();
 
-    // Ini adalah simulasi backend AI. 
-    // Nantinya kamu bisa menyambungkan ini ke Google Gemini API atau OpenAI.
-    
-    const lastMessage = messages[messages.length - 1].content.toLowerCase();
-    let aiResponse = "I'm here to support your academic journey. Could you tell me more about that?";
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-    // Logika sederhana untuk simulasi respons
-    if (lastMessage.includes("anxious") || lastMessage.includes("cemas")) {
-      aiResponse = "I understand that feeling. Take a deep breath. 😌 Remember, you've handled tough assignments before. Let's break this down together.";
-    } else if (lastMessage.includes("sla") || lastMessage.includes("literature")) {
-      aiResponse = "That sounds like an interesting topic! Should we start by reviewing your main notes or drafting the introduction?";
-    } else if (lastMessage.includes("burnout")) {
-      aiResponse = "You've been working hard. 😵‍💫 Maybe it's time to close the laptop for a bit? Your peace is more important than any deadline.";
-    }
+    // Instruksi khusus agar AI bertingkah seperti pewawancara
+    const systemPrompt = `Kamu adalah rekruter profesional yang sedang mewawancarai kandidat dari jurusan ${major} untuk posisi ${role}. 
+    Berikan respons yang singkat, profesional, dan menantang. Jangan terlalu ramah, bersikaplah seperti HRD sungguhan. 
+    Komentari jawaban kandidat, lalu berikan 1 pertanyaan lanjutan. Jawab dalam bahasa Inggris.`;
 
-    return NextResponse.json({
-      role: "ai",
-      content: aiResponse,
-    });
+    const result = await model.generateContent(`${systemPrompt}\n\nKandidat: ${message}`);
+    const response = result.response.text();
 
+    return NextResponse.json({ reply: response });
   } catch (error) {
-    console.error("Chat API Error:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
+    console.error('Error in AI Chat:', error);
+    return NextResponse.json({ error: 'Failed to generate response' }, { status: 500 });
   }
 }
