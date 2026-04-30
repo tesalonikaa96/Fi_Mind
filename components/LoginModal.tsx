@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Mail, Lock, ShieldCheck, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase"; 
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // Tambahkan ini untuk pindah halaman
+import { useRouter } from "next/navigation";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -14,49 +14,46 @@ interface LoginModalProps {
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const router = useRouter();
   
-  // State untuk form login
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState(""); // Diubah dari username ke password
+  const [password, setPassword] = useState(""); 
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState(""); // Untuk menampilkan pesan error
+  const [errorMsg, setErrorMsg] = useState(""); 
 
-  // --- LOGIN GOOGLE ---
+  // --- LOGIN GOOGLE (SUDAH DIUPDATE SCOPES-NYA) ---
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        scopes: 'https://www.googleapis.com/auth/classroom.courses.readonly',
-        queryParams: { access_type: 'offline', prompt: 'consent' },
+        // DI SINI PERUBAHANNYA: Menambahkan izin coursework agar tugas terbaca
+        scopes: 'https://www.googleapis.com/auth/classroom.courses.readonly https://www.googleapis.com/auth/classroom.coursework.me.readonly',
+        queryParams: { 
+          access_type: 'offline', 
+          prompt: 'consent' // Ini memaksa Google nanya izin lagi ke kamu
+        },
         redirectTo: `${window.location.origin}/dashboard`,
       },
     });
     if (error) console.error(error.message);
   };
 
-  // --- LOGIN MANUAL EMAIL & PASSWORD ---
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg("");
 
     try {
-      // Perintah resmi Supabase untuk login
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
         password: password,
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      // Jika berhasil, tutup modal dan pergi ke dashboard
       if (data.session) {
         onClose();
         router.push("/dashboard");
       }
     } catch (err: any) {
-      // Jika email/password salah, tampilkan pesan error
       setErrorMsg("Email atau password salah. Coba lagi ya!");
       console.error(err.message);
     } finally {
@@ -88,7 +85,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               </button>
 
               <div className="p-8 md:p-10 text-center overflow-y-auto custom-scrollbar">
-                
                 <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-50/50 shadow-inner">
                   <img src="/icon.png" alt="Fi-Mind Logo" className="h-10 w-10 object-contain drop-shadow-sm" />
                 </div>
@@ -96,14 +92,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 <h2 className="text-3xl font-black text-slate-800 tracking-tighter">FI-Mind</h2>
                 <p className="mt-2 text-slate-500 font-medium text-sm">Enter your details to access your sanctuary.</p>
 
-                {/* --- MENAMPILKAN ERROR JIKA ADA --- */}
                 {errorMsg && (
                   <div className="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-500 text-xs font-bold">
                     {errorMsg}
                   </div>
                 )}
 
-                {/* --- MANUAL FORM --- */}
                 <form onSubmit={handleManualSubmit} className="mt-6 space-y-4 text-left">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Email Address</label>
@@ -135,7 +129,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                     </div>
                   </div>
 
-                  {/* --- TOMBOL SUBMIT DINAMIS --- */}
                   <button 
                     type="submit"
                     disabled={isLoading}
@@ -169,11 +162,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               <div className="bg-slate-50 p-6 text-center border-t border-slate-100 shrink-0">
                 <p className="text-sm text-slate-500 font-medium">
                   Don&apos;t have an account?{" "}
-                  <Link 
-                    href="/register" 
-                    onClick={onClose} 
-                    className="text-sky-600 font-bold hover:text-sky-700 hover:underline transition-all"
-                  >
+                  <Link href="/register" onClick={onClose} className="text-sky-600 font-bold hover:text-sky-700 hover:underline transition-all">
                     Register here
                   </Link>
                 </p>
