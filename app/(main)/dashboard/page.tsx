@@ -31,17 +31,17 @@ export default function DashboardPage() {
   
   // State untuk Intro Dinamis
   const [showIntro, setShowIntro] = useState(false);
-  const [introEmoji, setIntroEmoji] = useState("✨");
-  const [introText, setIntroText] = useState("Syncing your sanctuary...");
+  const [introState, setIntroState] = useState({ emoji: "✨", text: "Syncing your sanctuary..." });
   
   const [tasks, setTasks] = useState<any[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [userName, setUserName] = useState("Tesalonika");
 
-  // ── FUNGSI FETCH TUGAS DAN CEK MISSING ──
+  // ── FUNGSI FETCH TUGAS (DENGAN PENGHITUNG OTOMATIS) ──
   const fetchClassroomTasks = async (token: string) => {
     setIsLoadingTasks(true);
-    let isMissingFound = false;
+    let missingCount = 0;
+    let activeCount = 0;
 
     try {
       const courseRes = await fetch("https://classroom.googleapis.com/v1/courses?courseStates=ACTIVE", {
@@ -50,7 +50,6 @@ export default function DashboardPage() {
       const courseData = await courseRes.json();
 
       if (courseData.courses) {
-        // Tarik data tugas & submission secara bersamaan
         const allTasksPromises = courseData.courses.map(async (course: any) => {
           const taskRes = await fetch(`https://classroom.googleapis.com/v1/courses/${course.id}/courseWork`, {
             headers: { Authorization: `Bearer ${token}` }
@@ -68,10 +67,13 @@ export default function DashboardPage() {
             const isTurnedIn = submission?.state === "TURNED_IN" || submission?.state === "RETURNED";
             const dueDate = t.dueDate ? new Date(t.dueDate.year, t.dueDate.month - 1, t.dueDate.day) : null;
             
-            // Cek apakah tugas lewat tenggat dan belum dikumpul
             const isOverdue = dueDate ? dueDate < new Date() : false;
+            
+            // Hitung status tugas
             if (isOverdue && !isTurnedIn) {
-              isMissingFound = true;
+              missingCount++;
+            } else if (!isTurnedIn) {
+              activeCount++;
             }
 
             return {
@@ -87,7 +89,6 @@ export default function DashboardPage() {
         const results = await Promise.all(allTasksPromises);
         const flatTasks = results.flat().filter(t => t !== undefined);
         
-        // Hanya tampilkan tugas yang belum selesai di Dashboard
         setTasks(flatTasks.filter(t => t.status !== "completed").slice(0, 4)); 
       }
     } catch (err) {
@@ -96,7 +97,7 @@ export default function DashboardPage() {
       setIsLoadingTasks(false);
     }
     
-    return isMissingFound;
+    return { missingCount, activeCount };
   };
 
   // ── LOGIKA INTRO UTAMA ──
@@ -109,28 +110,42 @@ export default function DashboardPage() {
         setUserName(session.user.user_metadata.full_name.split(' ')[0]);
       }
 
-      // Tampilkan layar loading awal jika belum pernah lihat
+      // Tampilkan layar loading jika belum pernah lihat
       if (!hasSeenIntro) {
         setShowIntro(true);
       }
 
-      let hasMissing = false;
+      let counts = { missingCount: 0, activeCount: 0 };
       if (session?.provider_token) {
-        hasMissing = await fetchClassroomTasks(session.provider_token);
+        counts = await fetchClassroomTasks(session.provider_token);
       } else {
         setIsLoadingTasks(false);
       }
 
       if (!hasSeenIntro) {
-        // Ganti Emoji & Teks berdasarkan hasil tarikan Classroom
-        setIntroEmoji(hasMissing ? "😰" : "🤩");
-        setIntroText(hasMissing ? "Missing tasks detected. Stay strong!" : "You're all caught up! Great job.");
+        // Ganti Emoji & Teks Spesifik Berdasarkan Jumlah Tugas
+        if (counts.missingCount > 0) {
+          setIntroState({
+            emoji: "😰",
+            text: `Kamu punya ${counts.missingCount} tugas terlewat. Jangan panik, cicil satu per satu ya! 💪`
+          });
+        } else if (counts.activeCount > 0) {
+          setIntroState({
+            emoji: "🤩",
+            text: `Ada ${counts.activeCount} tugas aktif menanti. Yuk, sikat habis hari ini! ✨`
+          });
+        } else {
+          setIntroState({
+            emoji: "😌",
+            text: "Semua tugas beres! Nikmati hari tenangnya. 🍃"
+          });
+        }
         
-        // Tunggu 3 detik lalu hilangkan intro
+        // Tunggu 3.5 detik *setelah* teks berubah supaya user sempat baca, lalu hilangkan
         setTimeout(() => {
           setShowIntro(false);
           sessionStorage.setItem("hasSeenIntro", "true");
-        }, 3000);
+        }, 3500);
       }
     };
 
@@ -154,21 +169,21 @@ export default function DashboardPage() {
             >
               <div className="absolute inset-0 bg-sky-400/20 blur-3xl rounded-full" />
               <motion.span 
-                key={introEmoji} // Akan animasi pop-up saat emoji berubah
+                key={introState.emoji} // Akan animasi pop-up saat emoji berubah
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 className="relative text-[120px] block"
               >
-                {introEmoji}
+                {introState.emoji}
               </motion.span>
             </motion.div>
             <motion.h2 
-              key={introText}
+              key={introState.text}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-8 text-2xl font-black text-slate-800 dark:text-white tracking-tight"
+              className="mt-8 text-2xl md:text-3xl font-black text-slate-800 dark:text-white tracking-tight max-w-lg leading-tight"
             >
-              {introText}
+              {introState.text}
             </motion.h2>
           </motion.div>
         )}
