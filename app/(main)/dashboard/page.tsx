@@ -2,42 +2,53 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Sparkles, Quote, ArrowRight, ListTodo, CheckCircle, 
-  Loader2, RefreshCw
+  Sparkles, Quote, ArrowRight, CheckCircle, 
+  Loader2, RefreshCw, Zap, Coffee, AlertCircle
 } from "lucide-react";
 import { supabase } from "@/lib/supabase"; 
 import Link from "next/link";
 
-// ── DATA KONFIGURASI ──
-const moodOptions = [
-  { emoji: "🤩", label: "Energized", color: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 border-yellow-200 dark:border-yellow-700/50" },
-  { emoji: "😌", label: "Calm", color: "bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400 border-sky-200 dark:border-sky-700/50" },
-  { emoji: "😐", label: "Okay", color: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700" },
-  { emoji: "🥱", label: "Tired", color: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 border-indigo-200 dark:border-indigo-700/50" },
-  { emoji: "😵‍💫", label: "Burnout", color: "bg-orange-100 dark:bg-orange-900/30 text-orange-500 dark:text-orange-400 border-orange-200 dark:border-orange-700/50" },
-  { emoji: "😰", label: "Anxious", color: "bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 border-teal-200 dark:border-teal-700/50" },
-];
+// ── DATA KONFIGURASI STATUS OTOMATIS ──
+const STATUS_THEMES: Record<string, any> = {
+  anxious: { 
+    emoji: "😰", 
+    label: "Anxious / Overdue", 
+    color: "bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 border-orange-200",
+    recommendation: "Take a deep breath. Let's tackle the overdue tasks first, one by one."
+  },
+  energized: { 
+    emoji: "🤩", 
+    label: "On Track / Focused", 
+    color: "bg-yellow-50 dark:bg-yellow-950/30 text-yellow-600 dark:text-yellow-400 border-yellow-200",
+    recommendation: "You have active tasks today! Great energy—let's keep the momentum going."
+  },
+  calm: { 
+    emoji: "😌", 
+    label: "All Clear / Peaceful", 
+    color: "bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 border-sky-200",
+    recommendation: "Zero pending tasks. This is the perfect time for a hobby or some self-care."
+  }
+};
 
 const dailyQuotes = [
   { text: "We read to know we are not alone.", author: "C.S. Lewis" },
   { text: "There is no greater agony than bearing an untold story inside you.", author: "Maya Angelou" },
-  { text: "Words can be like X-rays if you use them properly—they'll go through anything.", author: "Aldous Huxley" },
-  { text: "I can shake off everything as I write; my sorrows disappear, my courage is reborn.", author: "Anne Frank" },
+  { text: "Words can be like X-rays if you use them properly.", author: "Aldous Huxley" },
+  { text: "I can shake off everything as I write; my sorrows disappear.", author: "Anne Frank" },
 ];
 
 export default function DashboardPage() {
-  const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [randomQuote, setRandomQuote] = useState(dailyQuotes[0]);
-  
-  // State untuk Intro Dinamis
   const [showIntro, setShowIntro] = useState(false);
   const [introState, setIntroState] = useState({ emoji: "✨", text: "Syncing your sanctuary..." });
+  
+  // State Baru: Menyimpan status otomatis berdasarkan tugas
+  const [currentStatusKey, setCurrentStatusKey] = useState<string>("calm");
   
   const [tasks, setTasks] = useState<any[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [userName, setUserName] = useState("Tesalonika");
 
-  // ── FUNGSI FETCH TUGAS (DENGAN PENGHITUNG OTOMATIS) ──
   const fetchClassroomTasks = async (token: string) => {
     setIsLoadingTasks(true);
     let missingCount = 0;
@@ -66,15 +77,10 @@ export default function DashboardPage() {
             const submission = subData.studentSubmissions?.find((s: any) => s.courseWorkId === t.id);
             const isTurnedIn = submission?.state === "TURNED_IN" || submission?.state === "RETURNED";
             const dueDate = t.dueDate ? new Date(t.dueDate.year, t.dueDate.month - 1, t.dueDate.day) : null;
-            
             const isOverdue = dueDate ? dueDate < new Date() : false;
             
-            // Hitung status tugas
-            if (isOverdue && !isTurnedIn) {
-              missingCount++;
-            } else if (!isTurnedIn) {
-              activeCount++;
-            }
+            if (isOverdue && !isTurnedIn) missingCount++;
+            else if (!isTurnedIn) activeCount++;
 
             return {
               id: t.id,
@@ -88,19 +94,16 @@ export default function DashboardPage() {
 
         const results = await Promise.all(allTasksPromises);
         const flatTasks = results.flat().filter(t => t !== undefined);
-        
         setTasks(flatTasks.filter(t => t.status !== "completed").slice(0, 4)); 
       }
     } catch (err) {
-      console.error("Gagal sinkronisasi Classroom:", err);
+      console.error("Sync error:", err);
     } finally {
       setIsLoadingTasks(false);
     }
-    
     return { missingCount, activeCount };
   };
 
-  // ── LOGIKA INTRO UTAMA ──
   useEffect(() => {
     const initDashboard = async () => {
       const hasSeenIntro = sessionStorage.getItem("hasSeenIntro");
@@ -110,10 +113,7 @@ export default function DashboardPage() {
         setUserName(session.user.user_metadata.full_name.split(' ')[0]);
       }
 
-      // Tampilkan layar loading jika belum pernah lihat
-      if (!hasSeenIntro) {
-        setShowIntro(true);
-      }
+      if (!hasSeenIntro) setShowIntro(true);
 
       let counts = { missingCount: 0, activeCount: 0 };
       if (session?.provider_token) {
@@ -122,26 +122,22 @@ export default function DashboardPage() {
         setIsLoadingTasks(false);
       }
 
+      // TENTUKAN STATUS BERDASARKAN HASIL SYNC
+      let statusKey = "calm";
+      let intro = { emoji: "😌", text: "Semua tugas beres! Nikmati hari tenangnya. 🍃" };
+
+      if (counts.missingCount > 0) {
+        statusKey = "anxious";
+        intro = { emoji: "😰", text: `Ada ${counts.missingCount} tugas terlewat. Tetap tenang, kita selesaikan ya! 💪` };
+      } else if (counts.activeCount > 0) {
+        statusKey = "energized";
+        intro = { emoji: "🤩", text: `Ada ${counts.activeCount} tugas aktif menanti. Yuk, sikat habis hari ini! ✨` };
+      }
+
+      setCurrentStatusKey(statusKey);
+      setIntroState(intro);
+
       if (!hasSeenIntro) {
-        // Ganti Emoji & Teks Spesifik Berdasarkan Jumlah Tugas
-        if (counts.missingCount > 0) {
-          setIntroState({
-            emoji: "😰",
-            text: `Kamu punya ${counts.missingCount} tugas terlewat. Jangan panik, cicil satu per satu ya! 💪`
-          });
-        } else if (counts.activeCount > 0) {
-          setIntroState({
-            emoji: "🤩",
-            text: `Ada ${counts.activeCount} tugas aktif menanti. Yuk, sikat habis hari ini! ✨`
-          });
-        } else {
-          setIntroState({
-            emoji: "😌",
-            text: "Semua tugas beres! Nikmati hari tenangnya. 🍃"
-          });
-        }
-        
-        // Tunggu 3.5 detik *setelah* teks berubah supaya user sempat baca, lalu hilangkan
         setTimeout(() => {
           setShowIntro(false);
           sessionStorage.setItem("hasSeenIntro", "true");
@@ -153,35 +149,27 @@ export default function DashboardPage() {
     setRandomQuote(dailyQuotes[Math.floor(Math.random() * dailyQuotes.length)]);
   }, []);
 
+  const currentStatus = STATUS_THEMES[currentStatusKey];
+
   return (
     <>
       <AnimatePresence>
         {showIntro && (
           <motion.div 
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -20 }} 
-            className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-white dark:bg-slate-900 px-6 text-center transition-colors duration-500"
+            initial={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }} 
+            className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-white dark:bg-slate-900 px-6 text-center"
           >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="relative"
+            <motion.span 
+              key={introState.emoji}
+              initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              className="text-[120px] block mb-8"
             >
-              <div className="absolute inset-0 bg-sky-400/20 blur-3xl rounded-full" />
-              <motion.span 
-                key={introState.emoji} // Akan animasi pop-up saat emoji berubah
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="relative text-[120px] block"
-              >
-                {introState.emoji}
-              </motion.span>
-            </motion.div>
+              {introState.emoji}
+            </motion.span>
             <motion.h2 
               key={introState.text}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-8 text-2xl md:text-3xl font-black text-slate-800 dark:text-white tracking-tight max-w-lg leading-tight"
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              className="text-2xl md:text-3xl font-black text-slate-800 dark:text-white tracking-tight max-w-lg"
             >
               {introState.text}
             </motion.h2>
@@ -197,107 +185,84 @@ export default function DashboardPage() {
             <h1 className="text-4xl font-black text-slate-800 dark:text-white tracking-tight transition-colors">
               Welcome back, {userName}. 🌙
             </h1>
-            <p className="mt-2 text-slate-600 dark:text-slate-400 font-medium transition-colors">
-              Everything is synced. You&apos;re in control now.
+            <p className="mt-2 text-slate-600 dark:text-slate-400 font-medium">
+              Sanctuary is synced. {tasks.length > 0 ? "You have work to do." : "Peace is yours today."}
             </p>
           </motion.div>
 
-          {/* MOOD CHECK-IN */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-[40px] border border-white dark:border-slate-800 bg-white/70 dark:bg-slate-800/70 p-8 shadow-xl shadow-sky-100/50 dark:shadow-none backdrop-blur-xl transition-all duration-500">
-            <h2 className="mb-8 flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200 text-lg uppercase tracking-widest text-[11px] transition-colors">
-              <Sparkles className="h-4 w-4 text-sky-500" />
-              How are you feeling right now?
-            </h2>
-            <div className="grid grid-cols-3 gap-4 md:grid-cols-6">
-              {moodOptions.map((mood) => (
-                <button
-                  key={mood.label}
-                  onClick={() => setSelectedMood(mood.label)}
-                  className={`flex flex-col items-center justify-center gap-3 rounded-[30px] border py-6 transition-all duration-300 active:scale-95 ${
-                    selectedMood === mood.label 
-                      ? mood.color + " border-sky-400 dark:border-sky-500 shadow-lg scale-105" 
-                      : "bg-white dark:bg-slate-800 border-slate-50 dark:border-slate-700 hover:border-sky-100 dark:hover:border-sky-900 text-slate-800 dark:text-slate-300"
-                  }`}
-                >
-                  <span className="text-3xl">{mood.emoji}</span>
-                  <span className="text-[10px] font-black uppercase">{mood.label}</span>
-                </button>
-              ))}
+          {/* ── SMART STATUS CARD (PENGGANTI MOOD GRID) ── */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            className={`rounded-[40px] border p-8 shadow-xl backdrop-blur-xl transition-all duration-700 ${currentStatus.color}`}
+          >
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className="text-7xl bg-white/50 dark:bg-black/20 w-24 h-24 flex items-center justify-center rounded-[32px] shadow-inner">
+                {currentStatus.emoji}
+              </div>
+              <div className="flex-1 text-center md:text-left">
+                <h2 className="flex items-center justify-center md:justify-start gap-2 font-bold uppercase tracking-widest text-[11px] mb-2">
+                  <Sparkles className="h-4 w-4" />
+                  Calculated Academic Status
+                </h2>
+                <h3 className="text-2xl font-black mb-2 tracking-tight">{currentStatus.label}</h3>
+                <p className="text-sm font-medium opacity-80">{currentStatus.recommendation}</p>
+              </div>
+              <Link href="/tasks" className="bg-slate-900 text-white px-8 py-4 rounded-3xl text-sm font-bold hover:scale-105 active:scale-95 transition-all">
+                Handle Tasks
+              </Link>
             </div>
-
-            <AnimatePresence>
-              {selectedMood && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-700">
-                  <div className="flex gap-3">
-                    <div className="bg-sky-50 dark:bg-sky-500/10 p-4 rounded-3xl flex-1 transition-colors">
-                      <p className="text-xs font-bold text-sky-600 dark:text-sky-400 mb-1 uppercase tracking-wider">Quick Recommendation</p>
-                      <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">You seem {selectedMood}. Try a 25-min focus session with a lo-fi beat.</p>
-                    </div>
-                    <button className="bg-slate-900 dark:bg-sky-600 text-white px-6 rounded-3xl text-sm font-bold hover:bg-sky-600 dark:hover:bg-sky-500 transition-colors">Start</button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </motion.div>
 
-          {/* ── CLASSROOM OVERVIEW ── */}
+          {/* CLASSROOM OVERVIEW */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-            <div className="rounded-[40px] bg-white dark:bg-slate-800 p-8 shadow-xl shadow-sky-100/50 dark:shadow-none border border-white dark:border-slate-700 overflow-hidden relative transition-colors duration-500">
+            <div className="rounded-[40px] bg-white dark:bg-slate-800 p-8 shadow-xl shadow-sky-100/50 dark:shadow-none border border-white dark:border-slate-700 relative">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center transition-colors">
+                  <div className="h-10 w-10 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center">
                     <CheckCircle className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tighter transition-colors">Classroom Synced</h3>
-                    <p className="text-[10px] font-bold text-slate-400">Live updates from Google</p>
+                    <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tighter">Sync Active</h3>
+                    <p className="text-[10px] font-bold text-slate-400">Classroom Data Loaded</p>
                   </div>
                 </div>
-                <button onClick={() => window.location.reload()} className="text-slate-300 dark:text-slate-500 hover:text-sky-500 dark:hover:text-sky-400 transition-colors">
+                <button onClick={() => window.location.reload()} className="text-slate-300 hover:text-sky-500 transition-colors">
                   <RefreshCw className="h-4 w-4" />
                 </button>
               </div>
 
               <div className="space-y-3">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Pending Tasks</h4>
                 {isLoadingTasks ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-6 w-6 animate-spin text-sky-500" />
-                  </div>
+                  <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-sky-500" /></div>
                 ) : tasks.length > 0 ? (
                   tasks.map((task) => (
-                    <motion.div key={task.id} whileHover={{ x: 5 }} className="flex items-center justify-between p-5 bg-slate-50/50 dark:bg-slate-700/30 rounded-[24px] border border-slate-50 dark:border-slate-700/50 group hover:border-sky-100 dark:hover:border-sky-900 hover:bg-white dark:hover:bg-slate-700 transition-all">
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-[9px] font-black uppercase mb-0.5 ${task.status === 'missing' ? 'text-rose-500' : 'text-sky-600 dark:text-sky-400'}`}>
+                    <motion.div key={task.id} whileHover={{ x: 5 }} className="flex items-center justify-between p-5 bg-slate-50/50 dark:bg-slate-700/30 rounded-[24px] border border-slate-50 dark:border-slate-700/50 group hover:border-sky-100 transition-all">
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className={`text-[9px] font-black uppercase mb-0.5 ${task.status === 'missing' ? 'text-rose-500' : 'text-sky-600'}`}>
                           {task.courseName} {task.status === 'missing' && "• OVERDUE"}
                         </p>
-                        <h5 className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate pr-4 transition-colors">{task.title}</h5>
+                        <h5 className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate pr-4">{task.title}</h5>
                       </div>
-                      <a href={task.link} target="_blank" className="h-10 w-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 shadow-sm border border-slate-100 dark:border-slate-700 group-hover:text-sky-500 dark:group-hover:text-sky-400 group-hover:border-sky-100 dark:group-hover:border-sky-900 transition-all">
+                      <a href={task.link} target="_blank" className="h-10 w-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 shadow-sm border border-slate-100">
                         <ArrowRight className="h-4 w-4" />
                       </a>
                     </motion.div>
                   ))
                 ) : (
-                  <div className="py-12 text-center">
-                    <p className="text-slate-400 text-sm font-medium italic">No assignments found. Enjoy your peace! ✨</p>
-                  </div>
+                  <div className="py-12 text-center text-slate-400 text-sm italic">No assignments. Enjoy! ✨</div>
                 )}
               </div>
-
-              <Link href="/tasks" className="mt-8 block w-full text-center py-4 bg-slate-900 dark:bg-sky-600 rounded-[24px] text-white text-xs font-black uppercase tracking-widest hover:bg-sky-600 dark:hover:bg-sky-500 transition-all shadow-lg shadow-slate-200 dark:shadow-none">
-                Go to Focus Flow
-              </Link>
             </div>
           </motion.div>
 
-          {/* RANDOM QUOTES */}
+          {/* QUOTE SECTION */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center text-center p-8">
-            <Quote className="mb-6 h-8 w-8 text-sky-300 dark:text-sky-900 opacity-50" />
-            <p className="text-xl italic text-slate-700 dark:text-slate-300 leading-relaxed font-serif px-4 transition-colors">
+            <Quote className="mb-6 h-8 w-8 text-sky-300 opacity-50" />
+            <p className="text-xl italic text-slate-700 dark:text-slate-300 leading-relaxed font-serif px-4">
               &quot;{randomQuote.text}&quot;
             </p>
-            <p className="mt-6 text-[10px] font-black text-sky-500 dark:text-sky-400 uppercase tracking-[0.3em] transition-colors">
+            <p className="mt-6 text-[10px] font-black text-sky-500 uppercase tracking-[0.3em]">
               — {randomQuote.author}
             </p>
           </motion.div>
