@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Play, Pause, RotateCcw, AlertOctagon, Flame, 
   Clock, Trophy, CalendarDays, CheckCircle, 
-  ArrowUpRight, Award, BookOpen, Folder, Loader2 // <-- Loader2 sudah ditambahkan di sini
+  ArrowUpRight, Award, BookOpen, Folder, Loader2 
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -154,7 +154,6 @@ export default function FocusFlowPage() {
                           </div>
                           
                           <div className="space-y-3">
-                            {/* <-- Perbaikan TypeScript ada di baris ini: (courseTasks as any[]).map((t: any) => ...) --> */}
                             {(courseTasks as any[]).map((t: any) => <TaskCard key={t.id} task={t} type={activeTab} />)}
                           </div>
                         </div>
