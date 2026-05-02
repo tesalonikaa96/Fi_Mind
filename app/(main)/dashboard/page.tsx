@@ -66,8 +66,6 @@ const dailyQuotes = [
 export default function DashboardPage() {
   const [randomQuote, setRandomQuote] = useState(dailyQuotes[0]);
   const [showIntro, setShowIntro] = useState(false);
-  
-  // UPDATED: cycleEmoji now supports a wider sequence including face emojis
   const [cycleEmoji, setCycleEmoji] = useState("✨");
   const [introState, setIntroState] = useState({ text: "Syncing your sanctuary..." });
   const [currentStatusKey, setCurrentStatusKey] = useState<string>("calm");
@@ -171,7 +169,6 @@ export default function DashboardPage() {
       setIntroState(intro);
 
       if (!hasSeenIntro) {
-        // UPDATED: Expanded sequence with various face and atmospheric emojis
         const emojiSequence = ["✨", "😌", "🤩", "😰", "🦊", "📖", "🌙", "🌊"];
         let i = 0;
         const interval = setInterval(() => {
@@ -213,14 +210,14 @@ export default function DashboardPage() {
             <motion.span 
               key={cycleEmoji}
               initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              className="text-[120px] block mb-8"
+              className="text-[80px] sm:text-[100px] md:text-[120px] block mb-8"
             >
               {cycleEmoji}
             </motion.span>
             <motion.h2 
               key={introState.text}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-              className="text-2xl md:text-3xl font-black text-slate-800 dark:text-white tracking-tight max-w-lg"
+              className="text-xl sm:text-2xl md:text-3xl font-black text-slate-800 dark:text-white tracking-tight max-w-lg"
             >
               {introState.text}
             </motion.h2>
@@ -228,58 +225,62 @@ export default function DashboardPage() {
         )}
       </AnimatePresence>
 
-      <div className="min-h-screen p-6 md:p-10 pb-24 relative overflow-hidden bg-[#F0F7FF] dark:bg-slate-950 transition-colors duration-500">
+      <div className="min-h-screen p-4 sm:p-6 md:p-10 pb-24 relative overflow-hidden bg-[#F0F7FF] dark:bg-slate-950 transition-colors duration-500">
         
+        {/* Background Meshes */}
         <div className="absolute inset-0 pointer-events-none opacity-50 dark:opacity-20">
-           <div className="absolute -top-48 -right-48 w-[500px] h-[500px] bg-blue-300 rounded-full blur-[120px]" />
-           <div className="absolute top-1/2 -left-48 w-[500px] h-[500px] bg-indigo-300 rounded-full blur-[120px]" />
-           <div className="absolute -bottom-48 right-1/4 w-[500px] h-[500px] bg-sky-200 rounded-full blur-[120px]" />
+           <div className="absolute -top-48 -right-48 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-blue-300 rounded-full blur-[120px]" />
+           <div className="absolute top-1/2 -left-48 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-indigo-300 rounded-full blur-[120px]" />
+           <div className="absolute -bottom-48 right-1/4 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-sky-200 rounded-full blur-[120px]" />
         </div>
 
-        <div className="mx-auto max-w-3xl space-y-8 relative z-10">
+        <div className="mx-auto max-w-3xl lg:max-w-4xl space-y-8 relative z-10">
           
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-            <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">
+          {/* Welcome Header */}
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-left">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tighter">
               Welcome back, {userName}. 🌙
             </h1>
-            <p className="mt-2 text-slate-600 dark:text-slate-400 font-bold uppercase tracking-widest text-[10px]">
+            <p className="mt-2 text-slate-600 dark:text-slate-400 font-bold uppercase tracking-widest text-[8px] sm:text-[10px]">
               Sanctuary Synchronized • {tasks.length > 0 ? "Action Required" : "Total Peace Mode"}
             </p>
           </motion.div>
 
+          {/* Status Card (Mobile Stack, Tablet/Desktop Row) */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }} 
             animate={{ opacity: 1, y: 0 }} 
-            className={`rounded-[40px] border-2 p-8 shadow-2xl backdrop-blur-2xl transition-all duration-700 ${currentStatus.color}`}
+            className={`rounded-[32px] sm:rounded-[40px] border-2 p-6 sm:p-8 shadow-2xl backdrop-blur-2xl transition-all duration-700 ${currentStatus.color}`}
           >
-            <div className="flex flex-col md:flex-row items-center gap-6">
-              <div className="text-7xl bg-white/80 dark:bg-black/20 w-24 h-24 flex items-center justify-center rounded-[32px] shadow-inner border border-white">
+            <div className="flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
+              <div className="text-5xl sm:text-6xl md:text-7xl bg-white/80 dark:bg-black/20 w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center rounded-[24px] sm:rounded-[32px] shadow-inner border border-white">
                 {currentStatus.emoji}
               </div>
-              <div className="flex-1 text-center md:text-left">
-                <h2 className="flex items-center justify-center md:justify-start gap-2 font-black uppercase tracking-tighter text-[11px] mb-2 opacity-80">
-                  <Sparkles className="h-4 w-4" />
+              <div className="flex-1">
+                <h2 className="flex items-center justify-center md:justify-start gap-2 font-black uppercase tracking-tighter text-[9px] sm:text-[11px] mb-2 opacity-80">
+                  <Sparkles className="h-3 w-3 sm:h-4 sm:w-4" />
                   Calculated Academic Status
                 </h2>
-                <h3 className="text-3xl font-black mb-2 tracking-tight">{currentStatus.label}</h3>
-                <p className="text-sm font-bold opacity-90">{currentStatus.recommendation}</p>
+                <h3 className="text-2xl sm:text-3xl font-black mb-2 tracking-tight">{currentStatus.label}</h3>
+                <p className="text-xs sm:text-sm font-bold opacity-90">{currentStatus.recommendation}</p>
               </div>
-              <Link href="/tasks" className="bg-blue-800 text-white px-8 py-4 rounded-3xl text-sm font-black shadow-xl hover:bg-blue-900 active:scale-95 transition-all">
+              <Link href="/tasks" className="w-full md:w-auto bg-blue-800 text-white px-8 py-4 rounded-2xl sm:rounded-3xl text-sm font-black shadow-xl hover:bg-blue-900 active:scale-95 transition-all text-center">
                 Handle Tasks
               </Link>
             </div>
           </motion.div>
 
+          {/* Classroom Overview */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-            <div className="rounded-[40px] bg-white/80 dark:bg-slate-800/80 p-8 shadow-2xl shadow-blue-100/50 dark:shadow-none border border-white dark:border-slate-700 relative backdrop-blur-xl">
+            <div className="rounded-[32px] sm:rounded-[40px] bg-white/80 dark:bg-slate-800/80 p-6 sm:p-8 shadow-2xl border border-white dark:border-slate-700 relative backdrop-blur-xl">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 bg-blue-700 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-700/20">
-                    <CheckCircle className="h-5 w-5" />
+                  <div className="h-9 w-9 sm:h-10 sm:w-10 bg-blue-700 text-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-blue-700/20">
+                    <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <div>
-                    <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tighter">Classroom Live</h3>
-                    <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Real-time sync active</p>
+                  <div className="text-left">
+                    <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tighter text-sm sm:text-base">Classroom Live</h3>
+                    <p className="text-[8px] sm:text-[10px] font-black text-blue-500 uppercase tracking-widest">Real-time sync active</p>
                   </div>
                 </div>
                 <button onClick={() => window.location.reload()} className="text-blue-700 hover:rotate-180 transition-all duration-500 bg-blue-50 p-2 rounded-full">
@@ -292,31 +293,32 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-blue-700" /></div>
                 ) : tasks.length > 0 ? (
                   tasks.map((task) => (
-                    <motion.div key={task.id} whileHover={{ x: 5 }} className="flex items-center justify-between p-5 bg-white dark:bg-slate-700/50 rounded-[28px] border-2 border-slate-50 dark:border-slate-700 group hover:border-blue-400 transition-all shadow-sm">
+                    <motion.div key={task.id} whileHover={{ x: 5 }} className="flex items-center justify-between p-4 sm:p-5 bg-white dark:bg-slate-700/50 rounded-[24px] sm:rounded-[28px] border-2 border-slate-50 dark:border-slate-700 group hover:border-blue-400 transition-all shadow-sm">
                       <div className="flex-1 min-w-0 text-left">
-                        <p className={`text-[10px] font-black uppercase mb-1 ${task.status === 'missing' ? 'text-rose-600' : 'text-blue-700'}`}>
+                        <p className={`text-[8px] sm:text-[10px] font-black uppercase mb-1 ${task.status === 'missing' ? 'text-rose-600' : 'text-blue-700'}`}>
                           {task.courseName} {task.status === 'missing' && "• OVERDUE"}
                         </p>
-                        <h5 className="font-black text-slate-900 dark:text-slate-200 text-base truncate pr-4">{task.title}</h5>
+                        <h5 className="font-black text-slate-900 dark:text-slate-200 text-sm sm:text-base truncate pr-4">{task.title}</h5>
                       </div>
-                      <a href={task.link} target="_blank" className="h-10 w-10 rounded-2xl bg-blue-50 dark:bg-slate-800 flex items-center justify-center text-blue-700 border-2 border-blue-100 shadow-sm transition-all hover:bg-blue-700 hover:text-white">
+                      <a href={task.link} target="_blank" rel="noopener noreferrer" className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl sm:rounded-2xl bg-blue-50 dark:bg-slate-800 flex items-center justify-center text-blue-700 border-2 border-blue-100 shadow-sm transition-all hover:bg-blue-700 hover:text-white">
                         <ArrowRight className="h-4 w-4" />
                       </a>
                     </motion.div>
                   ))
                 ) : (
-                  <div className="py-12 text-center text-slate-400 text-sm italic font-black">Academic feed clear. Tranquility mode active. 🕊️</div>
+                  <div className="py-12 text-center text-slate-400 text-xs sm:text-sm italic font-black">Academic feed clear. Tranquility mode active. 🕊️</div>
                 )}
               </div>
             </div>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center text-center p-8 bg-slate-900 rounded-[40px] shadow-2xl relative overflow-hidden group">
-            <Quote className="mb-6 h-8 w-8 text-blue-500 opacity-50 relative z-10" />
-            <p className="text-xl italic text-slate-100 leading-relaxed font-serif px-4 relative z-10">
+          {/* Quote Section */}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center text-center p-6 sm:p-8 bg-slate-900 rounded-[32px] sm:rounded-[40px] shadow-2xl relative overflow-hidden group">
+            <Quote className="mb-6 h-6 w-6 sm:h-8 sm:w-8 text-blue-500 opacity-50 relative z-10" />
+            <p className="text-lg sm:text-xl italic text-slate-100 leading-relaxed font-serif px-4 relative z-10">
               &quot;{randomQuote.text}&quot;
             </p>
-            <p className="mt-6 text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] relative z-10">
+            <p className="mt-6 text-[8px] sm:text-[10px] font-black text-blue-400 uppercase tracking-[0.3em] relative z-10">
               — {randomQuote.author}
             </p>
             <div className="absolute top-0 right-0 p-24 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10" />
@@ -325,27 +327,28 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Mascot Interface (Responsive Box) */}
       <AnimatePresence>
         {showMascot && (
-          <div className="fixed inset-0 z-[250] flex items-end justify-end p-8 pointer-events-none">
+          <div className="fixed inset-0 z-[250] flex items-end justify-end p-4 sm:p-8 pointer-events-none">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/20 backdrop-blur-[2px] pointer-events-auto" onClick={() => setShowMascot(false)} />
             <motion.div 
               initial={{ y: 150, opacity: 0, scale: 0.8 }} 
               animate={{ y: 0, opacity: 1, scale: 1 }} 
               exit={{ y: 100, opacity: 0 }} 
               transition={{ type: "spring", bounce: 0.4 }}
-              className="relative z-[260] flex items-end gap-5 max-w-sm w-full pointer-events-auto"
+              className="relative z-[260] flex items-end gap-3 sm:gap-5 max-w-[calc(100%-2rem)] sm:max-w-sm w-full pointer-events-auto"
             >
-              <div className="bg-white p-7 rounded-[32px] rounded-br-sm shadow-2xl border-2 border-blue-200 relative flex-1 mb-10">
-                <p className="text-slate-800 text-sm font-black leading-relaxed">
+              <div className="bg-white p-5 sm:p-7 rounded-[28px] sm:rounded-[32px] rounded-br-sm shadow-2xl border-2 border-blue-200 relative flex-1 mb-6 sm:mb-10 text-left">
+                <p className="text-slate-800 text-xs sm:text-sm font-black leading-relaxed">
                   {currentDialogues[mascotStep]}
                 </p>
-                <button onClick={() => mascotStep < currentDialogues.length - 1 ? setMascotStep(s => s + 1) : setShowMascot(false)} className="mt-5 w-full bg-blue-800 text-white font-black text-xs py-4 rounded-2xl uppercase tracking-widest shadow-xl shadow-blue-900/20 flex items-center justify-center gap-2 transition-all active:scale-95">
+                <button onClick={() => mascotStep < currentDialogues.length - 1 ? setMascotStep(s => s + 1) : setShowMascot(false)} className="mt-5 w-full bg-blue-800 text-white font-black text-[10px] sm:text-xs py-3 sm:py-4 rounded-xl sm:rounded-2xl uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 active:scale-95">
                   {mascotStep < currentDialogues.length - 1 ? "Read More" : "Got it, Fimi!"} <ChevronRight size={14} />
                 </button>
                 <div className="absolute -bottom-3 right-8 w-6 h-6 bg-white border-b-2 border-r-2 border-blue-200 transform rotate-45" />
               </div>
-              <div className="w-24 h-24 shrink-0"><FimiMascotSVG isTalking={true} /></div>
+              <div className="w-16 h-16 sm:w-24 sm:h-24 shrink-0"><FimiMascotSVG isTalking={true} /></div>
             </motion.div>
           </div>
         )}
