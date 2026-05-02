@@ -1,16 +1,41 @@
 "use client";
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Wind, PenTool, Music, Film, Heart, CloudRain, Send, 
-  CalendarDays, PlusCircle, Play, X, Zap, Flame,
-  ChevronLeft, ChevronRight, TrendingUp
+  Wind, PenTool, CalendarDays, Send, 
+  ChevronLeft, ChevronRight, TrendingUp, X, 
+  BookOpen, Zap, Play, Flame, ShieldCheck, ChevronRight as ChevronRightIcon
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
-// ── DATA KONFIGURASI ──
+// ── COMPONENT: FIMI THE FOX (DYNAMICAL SVG) ──
+const FimiMascotSVG = ({ isTalking }: { isTalking: boolean }) => (
+  <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <motion.path d="M85 60C95 50 95 30 85 20C75 10 60 10 50 20C40 30 40 50 50 60" fill="#FB923C" animate={{ rotate: isTalking ? [0, 5, 0] : 0 }} transition={{ repeat: Infinity, duration: 1 }} />
+    <path d="M85 60C90 55 90 45 85 40L75 50L85 60Z" fill="white" /> 
+    <circle cx="50" cy="60" r="25" fill="#FB923C" />
+    <circle cx="50" cy="65" r="18" fill="white" /> 
+    <motion.g animate={{ y: isTalking ? [-1, 1, -1] : 0 }} transition={{ repeat: Infinity, duration: 0.5 }}>
+      <path d="M25 40L50 15L75 40C75 55 60 65 50 65C40 65 25 55 25 40Z" fill="#F97316" /> 
+      <path d="M25 40L15 20L35 30L25 40Z" fill="#F97316" />
+      <path d="M30 35L22 25L32 30L30 35Z" fill="#FECACA" /> 
+      <path d="M75 40L85 20L65 30L75 40Z" fill="#F97316" />
+      <path d="M70 35L78 25L68 30L70 35Z" fill="#FECACA" />
+      <path d="M50 65C60 65 70 58 70 50C70 42 60 38 50 38C40 38 30 42 30 50C30 58 40 65 50 65Z" fill="white" />
+      <circle cx="50" cy="50" r="3" fill="#1F2937" />
+      <motion.path 
+        d="M45 56C47 58 53 58 55 56" 
+        stroke="#1F2937" strokeWidth="2" strokeLinecap="round" 
+        animate={isTalking ? { d: ["M45 56C47 58 53 58 55 56", "M45 56C47 60 53 60 55 56", "M45 56C47 58 53 58 55 56"] } : { d: "M45 56C47 58 53 58 55 56" }}
+        transition={{ repeat: Infinity, duration: 0.3 }}
+      />
+      <motion.ellipse cx="38" cy="45" rx="3" ry="5" fill="#1F2937" animate={{ scaleY: [1, 0.1, 1] }} transition={{ repeat: Infinity, duration: 4, times: [0, 0.05, 0.1], delay: 1 }} />
+      <motion.ellipse cx="62" cy="45" rx="3" ry="5" fill="#1F2937" animate={{ scaleY: [1, 0.1, 1] }} transition={{ repeat: Infinity, duration: 4, times: [0, 0.05, 0.1], delay: 1 }} />
+    </motion.g>
+  </svg>
+);
+
 const LANES = 4;
-const MELODY = [329.63, 392.00, 440.00, 523.25, 659.25, 523.25, 440.00, 392.00, 329.63, 261.63];
-
 const moodOptions = [
   { emoji: "🤩", label: "Energized" }, { emoji: "😌", label: "Calm" },
   { emoji: "😐", label: "Okay" }, { emoji: "🥱", label: "Tired" },
@@ -18,285 +43,292 @@ const moodOptions = [
 ];
 
 export default function MoodSanctuaryPage() {
+  const [userName, setUserName] = useState("Tesalonika");
   const [journalText, setJournalText] = useState("");
+  const [selectedEntry, setSelectedEntry] = useState<{date: string, mood: string, note: string} | null>(null);
   const [isBreathing, setIsBreathing] = useState(false);
   const [breathePhase, setBreathePhase] = useState<"Inhale" | "Hold" | "Exhale">("Inhale");
-
-  // ── STATE MOOD & CALENDAR ──
-  // Data mood disimpan berdasarkan tanggal "YYYY-MM-DD"
-  const [moodHistory, setMoodHistory] = useState<Record<string, string>>({
-    "2026-04-25": "😌", "2026-04-26": "🤩", "2026-04-27": "😐", 
-    "2026-04-28": "😌", "2026-04-29": "🥱", "2026-04-30": "😌"
-  });
-
+  const [diaryData, setDiaryData] = useState<Record<string, {mood: string, note: string}>>({});
   const todayStr = new Date().toISOString().split('T')[0];
-  const todayMood = moodHistory[todayStr] || null;
 
-  // ── LOGIKA KALENDER ──
+  // Fimi State
+  const [showFimi, setShowFimi] = useState(false);
+  const [fimiStep, setFimiStep] = useState(0);
+  const fimiDialogues = [
+    "Writing things down is a great way to clear your head, Tesalonika! 🦊",
+    "Your diary is a safe space. No judgment here, only peace.",
+    "I've saved your entry in the sanctuary. Take another deep breath! ✨"
+  ];
+
+  useEffect(() => {
+    const savedData = localStorage.getItem("fi-mind-diary");
+    if (savedData) setDiaryData(JSON.parse(savedData));
+    
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.user_metadata?.full_name) {
+        setUserName(session.user.user_metadata.full_name.split(' ')[0]);
+      }
+    });
+  }, []);
+
+  const handleReleaseJournal = () => {
+    if (!journalText.trim()) return;
+    const currentEntry = diaryData[todayStr] || { mood: "😐", note: "" };
+    const newData = { ...diaryData, [todayStr]: { ...currentEntry, note: journalText } };
+    setDiaryData(newData);
+    localStorage.setItem("fi-mind-diary", JSON.stringify(newData));
+    setJournalText("");
+    
+    // Trigger Fimi
+    setFimiStep(0);
+    setShowFimi(true);
+  };
+
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
 
-  // ── HITUNG MOOD DOMINAN (7 HARI TERAKHIR) ──
   const dominantMood = useMemo(() => {
     const last7Days = Array.from({ length: 7 }).map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      return moodHistory[d.toISOString().split('T')[0]];
+      const d = new Date(); d.setDate(d.getDate() - i);
+      return diaryData[d.toISOString().split('T')[0]]?.mood;
     }).filter(Boolean);
-
-    if (last7Days.length === 0) return { emoji: "✨", label: "No data yet" };
-
-    const counts = last7Days.reduce((acc: any, emoji) => {
-      acc[emoji] = (acc[emoji] || 0) + 1;
-      return acc;
-    }, {});
-
+    if (last7Days.length === 0) return { emoji: "✨", label: "No data" };
+    const counts = last7Days.reduce((acc: any, m) => { acc[m] = (acc[m] || 0) + 1; return acc; }, {});
     const topEmoji = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
-    const label = moodOptions.find(m => m.emoji === topEmoji)?.label || "Steady";
-    
-    return { emoji: topEmoji, label };
-  }, [moodHistory]);
-
-  const handleMoodSelect = (emoji: string) => {
-    setMoodHistory(prev => ({ ...prev, [todayStr]: emoji }));
-    // Di sini kamu bisa tambahkan fungsi simpan ke Supabase agar tersinkron ke Dashboard
-  };
-
-  // ── GAME STATE (RHYTHM PRO) ──
-  const [isGameModalOpen, setIsGameModalOpen] = useState(false);
-  const [gameState, setGameState] = useState<"idle" | "playing" | "gameOver">("idle");
-  const [tiles, setTiles] = useState<{ id: number; lane: number; speed: number }[]>([]);
-  const [score, setScore] = useState(0);
-  const [combo, setCombo] = useState(0);
-  const audioCtx = useRef<AudioContext | null>(null);
-  const spawnTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const melodyIndex = useRef(0);
-
-  const playNextNote = useCallback(() => {
-    if (!audioCtx.current) audioCtx.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const ctx = audioCtx.current;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.value = MELODY[melodyIndex.current % MELODY.length];
-    melodyIndex.current++;
-    gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
-    osc.start(); osc.stop(ctx.currentTime + 1.2);
-  }, []);
-
-  const startGame = () => {
-    setScore(0); setCombo(0); setTiles([]); setGameState("playing");
-    spawnTimerRef.current = setInterval(() => {
-      setTiles(prev => [...prev, { id: Date.now(), lane: Math.floor(Math.random() * LANES), speed: 3.5 }]);
-    }, 800);
-  };
+    return { emoji: topEmoji, label: moodOptions.find(m => m.emoji === topEmoji)?.label || "Steady" };
+  }, [diaryData]);
 
   useEffect(() => {
+    let interval: NodeJS.Timeout;
     if (isBreathing) {
-      const interval = setInterval(() => {
+      interval = setInterval(() => {
         setBreathePhase(p => p === "Inhale" ? "Hold" : p === "Hold" ? "Exhale" : "Inhale");
       }, 3000);
-      return () => clearInterval(interval);
     }
+    return () => clearInterval(interval);
   }, [isBreathing]);
 
-  return (
-    <div className="min-h-screen p-4 md:p-8 font-sans pb-24" style={{ background: "linear-gradient(to bottom right, #f0fdfa, #e0f2fe, #f8fafc)" }}>
-      
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes fallDownGPU { 0% { transform: translateY(-100%); } 100% { transform: translateY(100vh); } }
-        .gpu-tile { animation: fallDownGPU linear forwards; will-change: transform; }
-      `}} />
+  const [isGameModalOpen, setIsGameModalOpen] = useState(false);
 
-      <div className="mx-auto max-w-5xl space-y-6">
-        <header className="flex justify-between items-end">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-800">Mood Sanctuary 🌿</h1>
-            <p className="text-sm text-slate-500 font-medium italic">"Your feelings are valid. Let them flow."</p>
+  return (
+    <div className="min-h-screen p-4 md:p-10 pb-24 relative overflow-hidden bg-[#F0F7FF] dark:bg-slate-950 transition-colors duration-500">
+      
+      {/* ── BACKGROUND MESH GRADIENTS ── */}
+      <div className="absolute inset-0 pointer-events-none opacity-50 dark:opacity-20">
+         <div className="absolute -top-48 -right-48 w-[600px] h-[600px] bg-blue-300 rounded-full blur-[120px]" />
+         <div className="absolute top-1/2 -left-48 w-[500px] h-[500px] bg-indigo-300 rounded-full blur-[120px]" />
+      </div>
+
+      <div className="mx-auto max-w-6xl space-y-8 relative z-10">
+        
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+          <div className="text-left">
+            <h1 className="text-3xl font-black tracking-tighter text-slate-900 dark:text-white">
+              Mood Sanctuary <span className="text-blue-600 text-xl font-medium tracking-normal font-serif">/ Diary</span>
+            </h1>
+            <p className="text-blue-700 font-bold uppercase tracking-[0.2em] text-[8px] mt-1 flex items-center gap-2">
+              <ShieldCheck size={12} /> Sanctuary Identity: Synced
+            </p>
           </div>
-          <div className="hidden md:block text-right">
-            <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">Current Period</p>
-            <p className="text-sm font-bold text-sky-600">{now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+          <div className="bg-white/80 backdrop-blur-xl px-6 py-4 rounded-[28px] border-2 border-white shadow-xl shadow-blue-900/5 flex items-center gap-4">
+             <div className="text-right">
+                <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest">7-Day Dominant</p>
+                <p className="text-sm font-black text-slate-800">{dominantMood.label}</p>
+             </div>
+             <div className="text-4xl">{dominantMood.emoji}</div>
           </div>
         </header>
 
-        <div className="grid gap-6 md:grid-cols-12">
+        <div className="grid gap-8 lg:grid-cols-12">
           
-          {/* ── LEFT: CHECK-IN & INSIGHT ── */}
-          <div className="md:col-span-4 space-y-6">
-            {/* Today's Check-in */}
-            <section className="rounded-[32px] border border-white bg-white/70 p-6 shadow-xl shadow-sky-100/50 backdrop-blur-xl">
-              <h2 className="text-xs font-black uppercase tracking-widest text-sky-600 mb-6 flex items-center gap-2">
-                <PlusCircle size={16} /> Check-in
-              </h2>
-              <div className="grid grid-cols-3 gap-3">
-                {moodOptions.map((mood) => (
-                  <button 
-                    key={mood.label} 
-                    onClick={() => handleMoodSelect(mood.emoji)} 
-                    className={`flex flex-col items-center justify-center rounded-2xl border-2 p-3 transition-all active:scale-90 ${todayMood === mood.emoji ? "bg-sky-50 border-sky-400 shadow-inner" : "bg-white border-slate-50 hover:border-sky-100"}`}
-                  >
-                    <span className="text-3xl mb-1">{mood.emoji}</span>
-                    <span className="text-[8px] font-black uppercase text-slate-400">{mood.label}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            {/* Weekly Dominant Mood */}
-            <section className="rounded-[32px] border border-indigo-100 bg-indigo-50/50 p-6 shadow-lg shadow-indigo-100/20">
-              <h2 className="text-xs font-black uppercase tracking-widest text-indigo-600 mb-4 flex items-center gap-2">
-                <TrendingUp size={16} /> Weekly Insight
-              </h2>
-              <div className="flex items-center gap-4">
-                <div className="text-5xl bg-white w-20 h-20 rounded-3xl flex items-center justify-center shadow-sm border border-indigo-50">
-                  {dominantMood.emoji}
+          {/* ── KALENDER UTAMA ── */}
+          <section className="lg:col-span-8 bg-white/90 backdrop-blur-2xl rounded-[40px] border-2 border-white p-8 shadow-2xl shadow-blue-900/5 relative">
+             <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center gap-3">
+                   <div className="h-10 w-10 bg-blue-800 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-800/20">
+                      <CalendarDays size={18} />
+                   </div>
+                   <h2 className="text-lg font-black text-slate-800 uppercase tracking-tighter">
+                      {now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                   </h2>
                 </div>
-                <div>
-                  <p className="text-slate-500 text-[10px] font-bold uppercase">Mostly Feeling</p>
-                  <p className="text-xl font-black text-slate-800 tracking-tight">{dominantMood.label}</p>
-                  <p className="text-[10px] text-indigo-400 font-medium mt-1">Based on last 7 days</p>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          {/* ── RIGHT: MONTHLY RECAP CALENDAR ── */}
-          <div className="md:col-span-8">
-            <section className="h-full rounded-[40px] border border-white bg-white/80 p-8 shadow-2xl shadow-sky-100/40 backdrop-blur-xl">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-3">
-                  <CalendarDays className="text-sky-500" /> Monthly Recap
-                </h2>
                 <div className="flex gap-2">
-                   <button className="p-2 rounded-xl bg-slate-50 text-slate-300 cursor-not-allowed"><ChevronLeft size={18} /></button>
-                   <button className="p-2 rounded-xl bg-slate-50 text-slate-300 cursor-not-allowed"><ChevronRight size={18} /></button>
+                   <button className="p-2.5 rounded-xl bg-slate-50 hover:bg-blue-100 text-slate-400 hover:text-blue-700 transition-colors"><ChevronLeft size={20} /></button>
+                   <button className="p-2.5 rounded-xl bg-slate-50 hover:bg-blue-100 text-slate-400 hover:text-blue-700 transition-colors"><ChevronRight size={20} /></button>
                 </div>
-              </div>
+             </div>
 
-              {/* Grid Header Hari */}
-              <div className="grid grid-cols-7 mb-4">
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-                  <div key={i} className="text-center text-[10px] font-black text-slate-300 uppercase">{d}</div>
-                ))}
-              </div>
-
-              {/* Grid Tanggal & Mood */}
-              <div className="grid grid-cols-7 gap-2">
-                {/* Padding untuk hari pertama */}
-                {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-                  <div key={`pad-${i}`} className="aspect-square" />
+             <div className="grid grid-cols-7 gap-3">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+                  <div key={d} className="text-center text-[8px] font-black text-slate-300 uppercase tracking-widest mb-2">{d}</div>
                 ))}
                 
-                {/* Render Tanggal */}
+                {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`p-${i}`} />)}
+                
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                   const day = i + 1;
                   const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                  const mood = moodHistory[dateKey];
+                  const entry = diaryData[dateKey];
                   const isToday = day === now.getDate();
 
                   return (
-                    <motion.div 
+                    <motion.button 
                       key={day}
-                      whileHover={{ scale: 1.1 }}
-                      className={`aspect-square rounded-2xl flex flex-col items-center justify-center relative border transition-all ${
-                        isToday ? "border-sky-400 bg-sky-50 shadow-md ring-4 ring-sky-100/50" : "border-slate-50 bg-white/50"
+                      whileHover={{ y: -3, scale: 1.02 }}
+                      onClick={() => entry && setSelectedEntry({date: dateKey, ...entry})}
+                      className={`aspect-[4/5] rounded-[24px] flex flex-col items-center justify-center relative border-2 transition-all ${
+                        isToday ? "border-blue-600 bg-blue-50 shadow-xl shadow-blue-600/10" : "border-slate-50 bg-white hover:border-blue-200"
                       }`}
                     >
-                      <span className="absolute top-1 left-2 text-[8px] font-black text-slate-300">{day}</span>
-                      {mood ? (
-                        <span className="text-xl md:text-2xl mt-1">{mood}</span>
-                      ) : (
-                        <div className="w-1 h-1 bg-slate-100 rounded-full mt-1" />
+                      <span className="absolute top-3 left-4 text-[9px] font-black text-slate-300">{day}</span>
+                      {entry?.mood && <span className="text-2xl mb-1">{entry.mood}</span>}
+                      {entry?.note && (
+                        <div className="absolute bottom-2 right-2 h-4 w-4 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
+                          <PenTool size={10} />
+                        </div>
                       )}
-                    </motion.div>
+                    </motion.button>
                   );
                 })}
-              </div>
-              
-              <div className="mt-8 pt-6 border-t border-slate-50 flex flex-wrap gap-4 justify-center">
-                 <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
-                    <div className="w-3 h-3 rounded-full border border-sky-400 bg-sky-50" /> Today
-                 </div>
-                 <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
-                    <div className="w-3 h-3 rounded-full bg-slate-100" /> No Data
-                 </div>
-              </div>
-            </section>
-          </div>
-        </div>
-
-        {/* ── GAMES & BREATHING (SAME AS BEFORE) ── */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <motion.div 
-            whileHover={{ y: -5 }}
-            className="rounded-3xl border border-indigo-300 bg-gradient-to-br from-indigo-500 to-purple-600 p-6 shadow-xl cursor-pointer text-white relative overflow-hidden group"
-            onClick={() => setIsGameModalOpen(true)}
-          >
-            <div className="flex items-center gap-3 mb-4 z-10 relative">
-                <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md"><Zap className="h-6 w-6 text-yellow-300" /></div>
-                <h2 className="text-xl font-black italic tracking-wide">RHYTHM PRO</h2>
-            </div>
-            <p className="text-sm font-medium text-indigo-100 leading-relaxed mb-6 z-10 relative">
-                Play the advanced mode. Features real melody sequencing and dynamic difficulty to clear your mind.
-            </p>
-            <button className="relative z-10 rounded-xl bg-white text-indigo-600 px-6 py-3 font-black text-xs flex items-center gap-2 shadow-lg">
-              <Play className="h-4 w-4 fill-indigo-600" /> PLAY PRO MODE
-            </button>
-          </motion.div>
-
-          <section className="flex flex-col items-center justify-center rounded-[40px] border border-teal-100 bg-white/60 p-6 text-center shadow-sm backdrop-blur-xl relative overflow-hidden h-64">
-            <div className="absolute top-6 left-8 flex items-center gap-2 text-teal-600 font-black text-[10px] uppercase tracking-widest"><Wind size={14} /> Breathing Room</div>
-            <div className="relative mt-4 flex h-32 w-32 items-center justify-center">
-              <motion.div className="absolute inset-0 rounded-full bg-teal-100/50" animate={isBreathing ? { scale: breathePhase === "Inhale" ? 1.5 : breathePhase === "Exhale" ? 0.8 : 1.5 } : { scale: 1 }} transition={{ duration: 3, ease: "easeInOut" }} />
-              <div className="relative z-10 flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-xl border border-teal-50">
-                <span className="text-sm font-black text-teal-700">{isBreathing ? breathePhase : "Ready"}</span>
-              </div>
-            </div>
-            <button onClick={() => setIsBreathing(!isBreathing)} className={`mt-6 rounded-full px-8 py-2.5 text-xs font-black shadow-lg transition-all ${isBreathing ? "bg-slate-100 text-slate-600" : "bg-teal-500 text-white shadow-teal-200"}`}>
-              {isBreathing ? "STOP" : "START BREATHING"}
-            </button>
+             </div>
           </section>
+
+          {/* ── ASIDE ── */}
+          <aside className="lg:col-span-4 space-y-6">
+            
+            {/* Brain Dump Journal */}
+            <section className="bg-slate-900 rounded-[40px] p-8 text-white shadow-2xl relative overflow-hidden group">
+               <div className="relative z-10 text-left">
+                  <div className="flex items-center gap-2 text-blue-400 font-black text-[9px] uppercase tracking-[0.2em] mb-5">
+                     <BookOpen size={14} /> Brain Dump Journal
+                  </div>
+                  <textarea 
+                    value={journalText}
+                    onChange={(e) => setJournalText(e.target.value)}
+                    placeholder="Write your story today..."
+                    className="w-full h-32 bg-white/5 border-2 border-white/5 rounded-3xl p-4 text-sm text-slate-100 placeholder:text-white/20 outline-none focus:border-blue-500 transition-all resize-none font-medium"
+                  />
+                  <button 
+                    onClick={handleReleaseJournal}
+                    className="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 shadow-xl shadow-blue-900/40"
+                  >
+                    <Send size={14} /> Save to Diary
+                  </button>
+               </div>
+               <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+            </section>
+
+            {/* Breathing Room */}
+            <section className="bg-white/90 backdrop-blur-xl rounded-[40px] border-2 border-white p-8 shadow-xl text-center relative overflow-hidden">
+               <div className="absolute top-6 left-8 flex items-center gap-2 text-teal-600 font-black text-[9px] uppercase tracking-widest">
+                 <Wind size={14} /> Breathing Room
+               </div>
+               <div className="relative mt-8 mx-auto flex h-28 w-28 items-center justify-center">
+                 <motion.div 
+                   className="absolute inset-0 rounded-full bg-teal-100/50" 
+                   animate={isBreathing ? { scale: breathePhase === "Inhale" ? 1.4 : breathePhase === "Exhale" ? 0.8 : 1.4 } : { scale: 1 }} 
+                   transition={{ duration: 3, ease: "easeInOut" }} 
+                 />
+                 <div className="relative z-10 flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-xl border border-teal-50">
+                   <span className="text-[10px] font-black text-teal-700 uppercase tracking-tighter">{isBreathing ? breathePhase : "Ready"}</span>
+                 </div>
+               </div>
+               <button 
+                 onClick={() => setIsBreathing(!isBreathing)} 
+                 className={`mt-8 rounded-2xl w-full py-4 text-[10px] font-black shadow-xl transition-all active:scale-95 uppercase tracking-widest ${isBreathing ? "bg-slate-100 text-slate-600 shadow-none" : "bg-teal-600 text-white hover:bg-teal-500 shadow-teal-900/10"}`}
+               >
+                 {isBreathing ? "Stop" : "Start"}
+               </button>
+            </section>
+
+            {/* Rhythm Session */}
+            <section className="bg-white/90 backdrop-blur-xl rounded-[40px] border-2 border-white p-8 shadow-xl cursor-pointer group text-left" onClick={() => setIsGameModalOpen(true)}>
+               <div className="flex items-center gap-3 mb-4">
+                  <div className="h-10 w-10 bg-blue-50 text-blue-800 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform"><Zap size={20} /></div>
+                  <h3 className="font-black text-slate-800 uppercase text-[9px] tracking-widest">Rhythm Session</h3>
+               </div>
+               <p className="text-[10px] font-bold text-slate-400 leading-relaxed mb-5 pr-4">Feeling overwhelmed? Let the melody guide your focus back to peace.</p>
+               <button className="w-full bg-blue-800 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-900/10 flex items-center justify-center gap-2">
+                  <Play size={14} fill="currentColor" /> Play Game
+               </button>
+            </section>
+
+          </aside>
         </div>
-
-        {/* ── BRAIN DUMP ── */}
-        <section className="flex flex-col rounded-[40px] border border-sky-100 bg-white/60 p-8 shadow-sm backdrop-blur-xl min-h-[300px]">
-          <div className="mb-4 flex items-center gap-2 text-sky-600 font-black text-[10px] uppercase tracking-widest"><PenTool size={14} /> Brain Dump Journal</div>
-          <textarea 
-            value={journalText} 
-            onChange={(e) => setJournalText(e.target.value)} 
-            placeholder="What's heavy on your mind today? Write it and release it..." 
-            className="flex-1 resize-none rounded-[32px] border border-slate-100 bg-white/50 p-6 text-sm text-slate-700 outline-none focus:ring-4 focus:ring-sky-100 focus:border-sky-300 transition-all font-medium leading-relaxed" 
-          />
-          <button onClick={() => { setJournalText(""); alert("Released into the universe! ✨"); }} className="mt-4 flex w-full items-center justify-center gap-3 rounded-2xl bg-slate-900 py-4 text-xs font-black text-white shadow-xl hover:bg-sky-600 transition-all active:scale-95 uppercase tracking-widest">
-            <Send size={14} /> Release Thought
-          </button>
-        </section>
-
       </div>
 
-      {/* ── RHYTHM GAME MODAL (KEEP PREVIOUS LOGIC) ── */}
+      {/* ── FIMI MASKOT POPUP (DIARY REWARD) ── */}
+      <AnimatePresence>
+        {showFimi && (
+          <div className="fixed inset-0 z-[250] flex items-end justify-end p-8 pointer-events-none">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/20 backdrop-blur-[2px] pointer-events-auto" onClick={() => setShowFimi(false)} />
+            <motion.div 
+              initial={{ y: 150, opacity: 0, scale: 0.8 }} 
+              animate={{ y: 0, opacity: 1, scale: 1 }} 
+              exit={{ y: 100, opacity: 0 }} 
+              transition={{ type: "spring", bounce: 0.4 }}
+              className="relative z-[260] flex items-end gap-5 max-w-sm w-full pointer-events-auto text-left"
+            >
+              <div className="bg-white p-6 rounded-[32px] rounded-br-sm shadow-3xl border-2 border-blue-200 relative flex-1 mb-10">
+                <p className="text-slate-800 text-sm font-bold leading-relaxed">
+                  {fimiDialogues[fimiStep]}
+                </p>
+                <button onClick={() => fimiStep < fimiDialogues.length - 1 ? setFimiStep(s => s + 1) : setShowFimi(false)} className="mt-5 w-full bg-blue-800 text-white font-black text-[10px] py-4 rounded-xl uppercase tracking-widest shadow-xl shadow-blue-900/20 flex items-center justify-center gap-2 active:scale-95">
+                  {fimiStep < fimiDialogues.length - 1 ? "Next" : "Got it, Fimi!"} <ChevronRightIcon size={14} />
+                </button>
+                <div className="absolute -bottom-3 right-8 w-6 h-6 bg-white border-b-2 border-r-2 border-blue-200 transform rotate-45" />
+              </div>
+              <div className="w-20 h-20 shrink-0"><FimiMascotSVG isTalking={true} /></div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── MODALS (EXISTING) ── */}
+      <AnimatePresence>
+        {selectedEntry && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white w-full max-w-lg rounded-[48px] overflow-hidden shadow-2xl border-2 border-white">
+              <div className="p-10 bg-blue-50 flex items-center justify-between text-left">
+                <div className="flex items-center gap-5">
+                  <span className="text-6xl">{selectedEntry.mood}</span>
+                  <div>
+                    <h3 className="font-black text-slate-800 text-lg">{new Date(selectedEntry.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</h3>
+                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Sanctuary Records</p>
+                  </div>
+                </div>
+                <button onClick={() => setSelectedEntry(null)} className="p-3 bg-white shadow-sm rounded-full transition-colors hover:text-blue-600"><X size={24} /></button>
+              </div>
+              <div className="p-10 text-left">
+                <div className="bg-slate-50 rounded-[32px] p-8 min-h-[180px] border-2 border-slate-100">
+                  <p className="text-slate-700 leading-relaxed italic text-sm font-medium">&quot;{selectedEntry.note || "No notes recorded for this date."}&quot;</p>
+                </div>
+                <button onClick={() => setSelectedEntry(null)} className="w-full mt-10 bg-blue-800 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-900/10">Return to Sanctuary</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {isGameModalOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[300] bg-slate-950/90 backdrop-blur-2xl flex items-center justify-center p-4"
-          >
-            {/* ... (Isi Modal Game sama seperti kode sebelumnya) ... */}
-            <button onClick={() => setIsGameModalOpen(false)} className="absolute top-10 right-10 text-white p-4 bg-white/10 rounded-full hover:bg-white/20"><X /></button>
-            <div className="text-white text-center">
-               <h2 className="text-4xl font-black italic mb-4">RHYTHM PRO</h2>
-               <p className="text-slate-400 mb-8">Game logic active. Click tiles to play.</p>
-               <button onClick={startGame} className="bg-indigo-500 px-10 py-4 rounded-full font-black">START MISSION</button>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[300] bg-slate-950/95 backdrop-blur-3xl flex items-center justify-center p-4">
+            <button onClick={() => setIsGameModalOpen(false)} className="absolute top-10 right-10 text-white p-5 bg-white/5 rounded-full hover:bg-white/10 transition-colors border border-white/10"><X /></button>
+            <div className="text-white text-center max-w-sm">
+               <h2 className="text-4xl font-black italic mb-4 tracking-tighter italic">RHYTHM PRO</h2>
+               <p className="text-slate-400 font-bold text-xs leading-relaxed mb-10">Sync your heartbeat with the flow. Use your keyboard to hit the targets as they descend.</p>
+               <button onClick={() => setIsGameModalOpen(false)} className="bg-blue-600 hover:bg-blue-500 px-12 py-5 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl shadow-blue-600/40">Enter the Flow</button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Atmospheric depth blobs */}
+      <div className="fixed top-1/4 left-0 w-64 h-64 bg-blue-400/5 blur-[100px] pointer-events-none" />
+      <div className="fixed bottom-0 right-0 w-80 h-80 bg-indigo-400/5 blur-[120px] pointer-events-none" />
     </div>
   );
 }

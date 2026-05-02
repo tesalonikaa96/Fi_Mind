@@ -17,13 +17,12 @@ export default function Sidebar() {
   return (
     <aside className="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 flex flex-col transition-colors duration-500">
       {/* Logo */}
-      <div className="flex items-center gap-3 mb-10 px-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500 text-white font-bold">
-          F
+        <div className="flex items-center gap-3 mb-10 px-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-50 shadow-inner border border-sky-100">
+            <img src="/icon.png" alt="Fi-Mind Logo" className="h-5 w-5 object-contain drop-shadow-sm" />
+          </div>
+          <span className="text-xl font-bold text-slate-800 dark:text-white tracking-tight transition-colors">Fi-Mind</span>
         </div>
-        <span className="text-xl font-bold text-slate-800 dark:text-white tracking-tight transition-colors">Fi-Mind</span>
-      </div>
-
       {/* Navigation */}
       <nav className="flex-1 space-y-1">
         {menuItems.map((item) => {
