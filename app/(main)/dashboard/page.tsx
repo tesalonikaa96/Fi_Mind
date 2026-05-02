@@ -66,13 +66,15 @@ const dailyQuotes = [
 export default function DashboardPage() {
   const [randomQuote, setRandomQuote] = useState(dailyQuotes[0]);
   const [showIntro, setShowIntro] = useState(false);
-  const [introState, setIntroState] = useState({ emoji: "✨", text: "Syncing your sanctuary..." });
+  
+  // UPDATED: cycleEmoji now supports a wider sequence including face emojis
+  const [cycleEmoji, setCycleEmoji] = useState("✨");
+  const [introState, setIntroState] = useState({ text: "Syncing your sanctuary..." });
   const [currentStatusKey, setCurrentStatusKey] = useState<string>("calm");
   const [tasks, setTasks] = useState<any[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(true);
   const [userName, setUserName] = useState("Tesalonika");
 
-  // State for Fimi Mascot
   const [showMascot, setShowMascot] = useState(false);
   const [mascotStep, setMascotStep] = useState(0);
   const [currentDialogues, setCurrentDialogues] = useState<string[]>([]);
@@ -155,24 +157,32 @@ export default function DashboardPage() {
       }
 
       let statusKey = "calm";
-      let intro = { emoji: "😌", text: "Semua tugas beres! Nikmati hari tenangnya. 🍃" };
+      let intro = { text: "All tasks completed! Enjoy your peaceful day. 🍃" };
 
       if (counts.missingCount > 0) {
         statusKey = "anxious";
-        intro = { emoji: "😰", text: `Ada ${counts.missingCount} tugas terlewat. Tetap tenang, kita selesaikan ya! 💪` };
+        intro = { text: `You have ${counts.missingCount} overdue tasks. Stay calm, let's solve them! 💪` };
       } else if (counts.activeCount > 0) {
         statusKey = "energized";
-        intro = { emoji: "🤩", text: `Ada ${counts.activeCount} tugas aktif menanti. Yuk, sikat habis hari ini! ✨` };
+        intro = { text: `You have ${counts.activeCount} active tasks. Let's conquer the day! ✨` };
       }
 
       setCurrentStatusKey(statusKey);
       setIntroState(intro);
 
       if (!hasSeenIntro) {
+        // UPDATED: Expanded sequence with various face and atmospheric emojis
+        const emojiSequence = ["✨", "😌", "🤩", "😰", "🦊", "📖", "🌙", "🌊"];
+        let i = 0;
+        const interval = setInterval(() => {
+          setCycleEmoji(emojiSequence[i % emojiSequence.length]);
+          i++;
+        }, 350);
+
         setTimeout(() => {
+          clearInterval(interval);
           setShowIntro(false);
           sessionStorage.setItem("hasSeenIntro", "true");
-          // Trigger Fimi after Intro
           if (!sessionMascotShown) {
             setCurrentDialogues([
               `Hi ${firstName}! I'm Fimi 🦊. Welcome to your sanctuary.`,
@@ -201,11 +211,11 @@ export default function DashboardPage() {
             className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-white dark:bg-slate-900 px-6 text-center"
           >
             <motion.span 
-              key={introState.emoji}
+              key={cycleEmoji}
               initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
               className="text-[120px] block mb-8"
             >
-              {introState.emoji}
+              {cycleEmoji}
             </motion.span>
             <motion.h2 
               key={introState.text}
@@ -220,7 +230,6 @@ export default function DashboardPage() {
 
       <div className="min-h-screen p-6 md:p-10 pb-24 relative overflow-hidden bg-[#F0F7FF] dark:bg-slate-950 transition-colors duration-500">
         
-        {/* ── BACKGROUND MESH GRADIENTS ── */}
         <div className="absolute inset-0 pointer-events-none opacity-50 dark:opacity-20">
            <div className="absolute -top-48 -right-48 w-[500px] h-[500px] bg-blue-300 rounded-full blur-[120px]" />
            <div className="absolute top-1/2 -left-48 w-[500px] h-[500px] bg-indigo-300 rounded-full blur-[120px]" />
@@ -229,7 +238,6 @@ export default function DashboardPage() {
 
         <div className="mx-auto max-w-3xl space-y-8 relative z-10">
           
-          {/* HEADER */}
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
             <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">
               Welcome back, {userName}. 🌙
@@ -239,7 +247,6 @@ export default function DashboardPage() {
             </p>
           </motion.div>
 
-          {/* ── SMART STATUS CARD ── */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }} 
             animate={{ opacity: 1, y: 0 }} 
@@ -263,7 +270,6 @@ export default function DashboardPage() {
             </div>
           </motion.div>
 
-          {/* CLASSROOM OVERVIEW */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <div className="rounded-[40px] bg-white/80 dark:bg-slate-800/80 p-8 shadow-2xl shadow-blue-100/50 dark:shadow-none border border-white dark:border-slate-700 relative backdrop-blur-xl">
               <div className="flex items-center justify-between mb-8">
@@ -305,7 +311,6 @@ export default function DashboardPage() {
             </div>
           </motion.div>
 
-          {/* QUOTE SECTION */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center text-center p-8 bg-slate-900 rounded-[40px] shadow-2xl relative overflow-hidden group">
             <Quote className="mb-6 h-8 w-8 text-blue-500 opacity-50 relative z-10" />
             <p className="text-xl italic text-slate-100 leading-relaxed font-serif px-4 relative z-10">
@@ -320,7 +325,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── FIMI MASKOT INTERFACE ── */}
       <AnimatePresence>
         {showMascot && (
           <div className="fixed inset-0 z-[250] flex items-end justify-end p-8 pointer-events-none">
