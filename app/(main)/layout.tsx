@@ -1,16 +1,18 @@
-"use client";
 import Sidebar from "@/components/layout/Sidebar";
 
-export default function MainLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-500">
+    // Di Laptop (lg), layout berdampingan (flex). Di HP, layout menumpuk (block).
+    <div className="flex flex-col lg:flex-row min-h-screen bg-[#F0F7FF] dark:bg-slate-950 transition-colors duration-500">
+      
+      {/* Sidebar yang sekarang sudah "Overlay" di HP */}
       <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        {children}
+      
+      {/* DASHBOARD AREA: Di HP lebar 100% penuh */}
+      <main className="flex-1 w-full min-w-0">
+        <div className="h-full">
+          {children}
+        </div>
       </main>
     </div>
   );
