@@ -1,46 +1,32 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "../components/ThemeProvider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "FI-Mind",
-  description: "Protect your peace, manage your tasks.",
-  icons: {
-    icon: [
-      {
-        url: "/icon.png", // Kalau di public namanya icon.png
-        href: "/icon.png",
-      },
-    ],
-    apple: [
-      {
-        url: "/icon.png", // Ikon khusus buat tampilan di MacBook/iPhone
-        href: "/icon.png",
-      },
-    ],
-  },
+  title: "Fi-Mind | Protect Your Peace",
+  description: "A sanctuary for academic and emotional well-being.",
 };
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

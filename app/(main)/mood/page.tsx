@@ -107,15 +107,73 @@ export default function MoodSanctuaryPage() {
     return () => clearInterval(interval);
   }, [isBreathing]);
 
+  // ── PIANO RHYTHM GAME STATE ──
   const [isGameModalOpen, setIsGameModalOpen] = useState(false);
+  const [gameState, setGameState] = useState<"idle" | "playing" | "gameover">("idle");
+  const [score, setScore] = useState(0);
+  const [tiles, setTiles] = useState<Array<{id: number, col: number, y: number, clicked: boolean}>>([]);
+  const [speed, setSpeed] = useState(2);
+
+  // Piano Game Engine
+  useEffect(() => {
+    if (gameState !== "playing") return;
+    
+    const interval = setInterval(() => {
+      setTiles(prev => {
+        let newTiles = prev.map(t => ({ ...t, y: t.y + speed }));
+        if (newTiles.some(t => t.y > 100 && !t.clicked)) {
+          setGameState("gameover");
+          return prev;
+        }
+        newTiles = newTiles.filter(t => !(t.clicked && t.y > 100));
+        const lastTile = newTiles[newTiles.length - 1];
+        if (!lastTile || lastTile.y > 25) {
+          newTiles.push({ 
+            id: Date.now() + Math.random(), 
+            col: Math.floor(Math.random() * 4), 
+            y: lastTile ? lastTile.y - 25 : -25, 
+            clicked: false 
+          });
+        }
+        return newTiles;
+      });
+    }, 30); 
+    return () => clearInterval(interval);
+  }, [gameState, speed]);
+
+  const startGame = () => {
+    setScore(0);
+    setSpeed(1.5);
+    setTiles([{ id: Date.now(), col: Math.floor(Math.random() * 4), y: -25, clicked: false }]);
+    setGameState("playing");
+  };
+
+  const clickTile = (id: number) => {
+    setTiles(prev => {
+      const unclicked = prev.filter(t => !t.clicked);
+      const lowest = unclicked.reduce((acc, curr) => (acc.y > curr.y ? acc : curr), unclicked[0]);
+      
+      if (lowest && lowest.id === id) {
+        setScore(s => {
+          const newScore = s + 1;
+          if (newScore > 0 && newScore % 10 === 0) setSpeed(sp => sp + 0.3);
+          return newScore;
+        });
+        return prev.map(t => t.id === id ? { ...t, clicked: true } : t);
+      } else {
+        setGameState("gameover");
+        return prev;
+      }
+    });
+  };
 
   return (
     <div className="min-h-screen p-4 sm:p-6 md:p-10 pb-24 relative overflow-hidden bg-[#F0F7FF] dark:bg-slate-950 transition-colors duration-500">
       
       {/* ── BACKGROUND MESH ── */}
       <div className="absolute inset-0 pointer-events-none opacity-50 dark:opacity-20">
-         <div className="absolute -top-48 -right-48 w-[300px] sm:w-[600px] h-[300px] sm:h-[600px] bg-blue-300 rounded-full blur-[120px]" />
-         <div className="absolute top-1/2 -left-48 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-indigo-300 rounded-full blur-[120px]" />
+         <div className="absolute -top-48 -right-48 w-[300px] sm:w-[600px] h-[300px] sm:h-[600px] bg-blue-300 dark:bg-blue-800 rounded-full blur-[120px]" />
+         <div className="absolute top-1/2 -left-48 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-indigo-300 dark:bg-indigo-900 rounded-full blur-[120px]" />
       </div>
 
       <div className="mx-auto max-w-6xl space-y-8 relative z-10">
@@ -124,16 +182,16 @@ export default function MoodSanctuaryPage() {
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
           <div className="text-left">
             <h1 className="text-2xl sm:text-3xl font-black tracking-tighter text-slate-900 dark:text-white">
-              Mood Sanctuary <span className="text-blue-600 text-lg font-medium tracking-normal font-serif">/ Diary</span>
+              Mood Sanctuary <span className="text-blue-600 dark:text-blue-400 text-lg font-medium tracking-normal font-serif">/ Diary</span>
             </h1>
-            <p className="text-blue-700 font-bold uppercase tracking-[0.2em] text-[8px] mt-1 flex items-center gap-2">
+            <p className="text-blue-700 dark:text-blue-500 font-bold uppercase tracking-[0.2em] text-[8px] mt-1 flex items-center gap-2">
               <ShieldCheck size={12} /> Sanctuary Identity: Synced
             </p>
           </div>
-          <div className="w-full sm:w-auto bg-white/80 backdrop-blur-xl px-6 py-4 rounded-[28px] border-2 border-white shadow-xl shadow-blue-900/5 flex items-center justify-between sm:justify-start gap-4">
+          <div className="w-full sm:w-auto bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl px-6 py-4 rounded-[28px] border-2 border-white dark:border-slate-800 shadow-xl shadow-blue-900/5 flex items-center justify-between sm:justify-start gap-4">
              <div className="text-right">
-                <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest">7-Day Dominant</p>
-                <p className="text-sm font-black text-slate-800">{dominantMood.label}</p>
+                <p className="text-[8px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest">7-Day Dominant</p>
+                <p className="text-sm font-black text-slate-800 dark:text-slate-200">{dominantMood.label}</p>
              </div>
              <div className="text-3xl sm:text-4xl">{dominantMood.emoji}</div>
           </div>
@@ -143,25 +201,25 @@ export default function MoodSanctuaryPage() {
         <div className="grid gap-8 lg:grid-cols-12">
           
           {/* CALENDAR SECTION */}
-          <section className="lg:col-span-8 bg-white/90 backdrop-blur-2xl rounded-[32px] sm:rounded-[40px] border-2 border-white p-5 sm:p-8 shadow-2xl shadow-blue-900/5 relative">
+          <section className="lg:col-span-8 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl rounded-[32px] sm:rounded-[40px] border-2 border-white dark:border-slate-800 p-5 sm:p-8 shadow-2xl shadow-blue-900/5 relative">
              <div className="flex items-center justify-between mb-8 sm:mb-10">
                 <div className="flex items-center gap-3">
-                   <div className="h-9 w-9 sm:h-10 sm:w-10 bg-blue-800 text-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-blue-800/20">
+                   <div className="h-9 w-9 sm:h-10 sm:w-10 bg-blue-800 dark:bg-blue-600 text-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-blue-800/20 dark:shadow-none">
                       <CalendarDays size={18} />
                    </div>
-                   <h2 className="text-base sm:text-lg font-black text-slate-800 uppercase tracking-tighter">
+                   <h2 className="text-base sm:text-lg font-black text-slate-800 dark:text-white uppercase tracking-tighter">
                       {now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                    </h2>
                 </div>
                 <div className="flex gap-2">
-                   <button className="p-2 sm:p-2.5 rounded-xl bg-slate-50 text-slate-400"><ChevronLeft size={18} /></button>
-                   <button className="p-2 sm:p-2.5 rounded-xl bg-slate-50 text-slate-400"><ChevronRight size={18} /></button>
+                   <button className="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"><ChevronLeft size={18} /></button>
+                   <button className="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"><ChevronRight size={18} /></button>
                 </div>
              </div>
 
              <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                  <div key={d} className="text-center text-[7px] sm:text-[8px] font-black text-slate-300 uppercase tracking-widest mb-2">{d}</div>
+                  <div key={d} className="text-center text-[7px] sm:text-[8px] font-black text-slate-300 dark:text-slate-500 uppercase tracking-widest mb-2">{d}</div>
                 ))}
                 
                 {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`p-${i}`} />)}
@@ -178,13 +236,15 @@ export default function MoodSanctuaryPage() {
                       whileHover={{ y: -2, scale: 1.02 }}
                       onClick={() => entry && setSelectedEntry({date: dateKey, ...entry})}
                       className={`aspect-[4/5] rounded-[16px] sm:rounded-[24px] flex flex-col items-center justify-center relative border-2 transition-all ${
-                        isToday ? "border-blue-600 bg-blue-50 shadow-xl shadow-blue-600/10" : "border-slate-50 bg-white"
+                        isToday 
+                          ? "border-blue-600 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/30 shadow-xl shadow-blue-600/10 dark:shadow-none" 
+                          : "border-slate-50 dark:border-slate-800 bg-white dark:bg-slate-800/50 hover:border-slate-200 dark:hover:border-slate-700"
                       }`}
                     >
-                      <span className="absolute top-1.5 sm:top-3 left-2 sm:left-4 text-[7px] sm:text-[9px] font-black text-slate-300">{day}</span>
+                      <span className="absolute top-1.5 sm:top-3 left-2 sm:left-4 text-[7px] sm:text-[9px] font-black text-slate-300 dark:text-slate-500">{day}</span>
                       {entry?.mood && <span className="text-lg sm:text-2xl mb-1">{entry.mood}</span>}
                       {entry?.note && (
-                        <div className="absolute bottom-1.5 right-1.5 h-3 w-3 sm:h-4 sm:w-4 bg-blue-100 text-blue-600 rounded-md sm:rounded-lg flex items-center justify-center">
+                        <div className="absolute bottom-1.5 right-1.5 h-3 w-3 sm:h-4 sm:w-4 bg-blue-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 rounded-md sm:rounded-lg flex items-center justify-center">
                           <PenTool size={8} className="sm:w-[10px]" />
                         </div>
                       )}
@@ -198,7 +258,7 @@ export default function MoodSanctuaryPage() {
           <aside className="lg:col-span-4 space-y-6">
             
             {/* Brain Dump Journal */}
-            <section className="bg-slate-900 rounded-[32px] sm:rounded-[40px] p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden text-left">
+            <section className="bg-slate-900 dark:bg-slate-950 rounded-[32px] sm:rounded-[40px] p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden text-left border border-transparent dark:border-slate-800">
                <div className="relative z-10">
                   <div className="flex items-center gap-2 text-blue-400 font-black text-[9px] uppercase tracking-[0.2em] mb-5">
                      <BookOpen size={14} /> Brain Dump Journal
@@ -220,36 +280,40 @@ export default function MoodSanctuaryPage() {
             </section>
 
             {/* Breathing Room */}
-            <section className="bg-white/90 backdrop-blur-xl rounded-[32px] sm:rounded-[40px] border-2 border-white p-6 sm:p-8 shadow-xl text-center relative overflow-hidden">
-               <div className="absolute top-6 left-8 flex items-center gap-2 text-teal-600 font-black text-[9px] uppercase tracking-widest">
+            <section className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[32px] sm:rounded-[40px] border-2 border-white dark:border-slate-800 p-6 sm:p-8 shadow-xl text-center relative overflow-hidden">
+               <div className="absolute top-6 left-8 flex items-center gap-2 text-teal-600 dark:text-teal-400 font-black text-[9px] uppercase tracking-widest">
                  <Wind size={14} /> Breathing Room
                </div>
                <div className="relative mt-8 mx-auto flex h-24 w-24 sm:h-28 sm:w-28 items-center justify-center">
                  <motion.div 
-                   className="absolute inset-0 rounded-full bg-teal-100/50" 
+                   className="absolute inset-0 rounded-full bg-teal-100/50 dark:bg-teal-900/30" 
                    animate={isBreathing ? { scale: breathePhase === "Inhale" ? 1.4 : breathePhase === "Exhale" ? 0.8 : 1.4 } : { scale: 1 }} 
                    transition={{ duration: 3, ease: "easeInOut" }} 
                  />
-                 <div className="relative z-10 flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-white shadow-xl border border-teal-50">
-                   <span className="text-[9px] sm:text-[10px] font-black text-teal-700 uppercase tracking-tighter">{isBreathing ? breathePhase : "Ready"}</span>
+                 <div className="relative z-10 flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-white dark:bg-slate-800 shadow-xl border border-teal-50 dark:border-slate-700">
+                   <span className="text-[9px] sm:text-[10px] font-black text-teal-700 dark:text-teal-400 uppercase tracking-tighter">{isBreathing ? breathePhase : "Ready"}</span>
                  </div>
                </div>
                <button 
                  onClick={() => setIsBreathing(!isBreathing)} 
-                 className={`mt-8 rounded-xl sm:rounded-2xl w-full py-4 text-[10px] font-black shadow-xl transition-all active:scale-95 uppercase tracking-widest ${isBreathing ? "bg-slate-100 text-slate-600 shadow-none" : "bg-teal-600 text-white shadow-teal-900/10"}`}
+                 className={`mt-8 rounded-xl sm:rounded-2xl w-full py-4 text-[10px] font-black shadow-xl transition-all active:scale-95 uppercase tracking-widest ${
+                   isBreathing 
+                     ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-none" 
+                     : "bg-teal-600 dark:bg-teal-700 text-white shadow-teal-900/10 dark:shadow-none"
+                 }`}
                >
                  {isBreathing ? "Stop" : "Start"}
                </button>
             </section>
 
             {/* Rhythm Session */}
-            <section className="bg-white/90 backdrop-blur-xl rounded-[32px] sm:rounded-[40px] border-2 border-white p-6 sm:p-8 shadow-xl cursor-pointer group text-left" onClick={() => setIsGameModalOpen(true)}>
+            <section className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-[32px] sm:rounded-[40px] border-2 border-white dark:border-slate-800 p-6 sm:p-8 shadow-xl cursor-pointer group text-left" onClick={() => setIsGameModalOpen(true)}>
                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-9 w-9 sm:h-10 sm:w-10 bg-blue-50 text-blue-800 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform"><Zap size={20} /></div>
-                  <h3 className="font-black text-slate-800 uppercase text-[9px] tracking-widest">Rhythm Session</h3>
+                  <div className="h-9 w-9 sm:h-10 sm:w-10 bg-blue-50 dark:bg-slate-800 text-blue-800 dark:text-blue-400 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform"><Zap size={20} /></div>
+                  <h3 className="font-black text-slate-800 dark:text-white uppercase text-[9px] tracking-widest">Rhythm Session</h3>
                </div>
-               <p className="text-[10px] font-bold text-slate-400 leading-relaxed mb-5">Feeling overwhelmed? Let the melody guide your focus back to peace.</p>
-               <button className="w-full bg-blue-800 text-white py-4 rounded-xl sm:rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-2">
+               <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 leading-relaxed mb-5">Feeling overwhelmed? Let the melody guide your focus back to peace.</p>
+               <button className="w-full bg-blue-800 dark:bg-blue-600 text-white py-4 rounded-xl sm:rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-2">
                   <Play size={14} fill="currentColor" /> Play Game
                </button>
             </section>
@@ -262,19 +326,19 @@ export default function MoodSanctuaryPage() {
       <AnimatePresence>
         {showFimi && (
           <div className="fixed inset-0 z-[250] flex items-end justify-end p-4 sm:p-8 pointer-events-none">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/20 backdrop-blur-[2px] pointer-events-auto" onClick={() => setShowFimi(false)} />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/20 dark:bg-slate-950/60 backdrop-blur-[2px] pointer-events-auto" onClick={() => setShowFimi(false)} />
             <motion.div 
               initial={{ y: 150, opacity: 0, scale: 0.8 }} 
               animate={{ y: 0, opacity: 1, scale: 1 }} 
               exit={{ y: 100, opacity: 0 }} 
               className="relative z-[260] flex items-end gap-3 sm:gap-5 max-w-[calc(100%-2rem)] sm:max-w-sm w-full pointer-events-auto text-left"
             >
-              <div className="bg-white p-5 sm:p-7 rounded-[28px] sm:rounded-[32px] rounded-br-sm shadow-3xl border-2 border-blue-200 relative flex-1 mb-6 sm:mb-10">
-                <p className="text-slate-800 text-xs sm:text-sm font-bold leading-relaxed">{fimiDialogues[fimiStep]}</p>
-                <button onClick={() => fimiStep < fimiDialogues.length - 1 ? setFimiStep(s => s + 1) : setShowFimi(false)} className="mt-5 w-full bg-blue-800 text-white font-black text-[10px] py-3.5 sm:py-4 rounded-xl uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 active:scale-95">
+              <div className="bg-white dark:bg-slate-800 p-5 sm:p-7 rounded-[28px] sm:rounded-[32px] rounded-br-sm shadow-3xl border-2 border-blue-200 dark:border-slate-700 relative flex-1 mb-6 sm:mb-10">
+                <p className="text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-bold leading-relaxed">{fimiDialogues[fimiStep]}</p>
+                <button onClick={() => fimiStep < fimiDialogues.length - 1 ? setFimiStep(s => s + 1) : setShowFimi(false)} className="mt-5 w-full bg-blue-800 dark:bg-blue-600 text-white font-black text-[10px] py-3.5 sm:py-4 rounded-xl uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 active:scale-95">
                   {fimiStep < fimiDialogues.length - 1 ? "Next" : "Got it!"} <ChevronRightIcon size={14} />
                 </button>
-                <div className="absolute -bottom-3 right-8 w-6 h-6 bg-white border-b-2 border-r-2 border-blue-200 transform rotate-45" />
+                <div className="absolute -bottom-3 right-8 w-6 h-6 bg-white dark:bg-slate-800 border-b-2 border-r-2 border-blue-200 dark:border-slate-700 transform rotate-45" />
               </div>
               <div className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 mb-6 sm:mb-10"><FimiMascotSVG isTalking={true} /></div>
             </motion.div>
@@ -286,22 +350,22 @@ export default function MoodSanctuaryPage() {
       <AnimatePresence>
         {selectedEntry && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white w-full max-w-lg rounded-[32px] sm:rounded-[48px] overflow-hidden shadow-2xl border-2 border-white">
-              <div className="p-6 sm:p-10 bg-blue-50 flex items-center justify-between text-left">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[32px] sm:rounded-[48px] overflow-hidden shadow-2xl border-2 border-white dark:border-slate-800">
+              <div className="p-6 sm:p-10 bg-blue-50 dark:bg-slate-800 flex items-center justify-between text-left">
                 <div className="flex items-center gap-4 sm:gap-5">
                   <span className="text-4xl sm:text-6xl">{selectedEntry.mood}</span>
                   <div>
-                    <h3 className="font-black text-slate-800 text-base sm:text-lg">{new Date(selectedEntry.date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</h3>
-                    <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Sanctuary Records</p>
+                    <h3 className="font-black text-slate-800 dark:text-white text-base sm:text-lg">{new Date(selectedEntry.date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</h3>
+                    <p className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Sanctuary Records</p>
                   </div>
                 </div>
-                <button onClick={() => setSelectedEntry(null)} className="p-2 sm:p-3 bg-white shadow-sm rounded-full transition-colors hover:text-blue-600"><X size={20} /></button>
+                <button onClick={() => setSelectedEntry(null)} className="p-2 sm:p-3 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 shadow-sm rounded-full transition-colors hover:text-blue-600 dark:hover:text-white"><X size={20} /></button>
               </div>
               <div className="p-6 sm:p-10 text-left">
-                <div className="bg-slate-50 rounded-[24px] sm:rounded-[32px] p-6 sm:p-8 min-h-[150px] border-2 border-slate-100">
-                  <p className="text-slate-700 leading-relaxed italic text-sm font-medium">&quot;{selectedEntry.note || "No notes recorded for this date."}&quot;</p>
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-[24px] sm:rounded-[32px] p-6 sm:p-8 min-h-[150px] border-2 border-slate-100 dark:border-slate-700">
+                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed italic text-sm font-medium">&quot;{selectedEntry.note || "No notes recorded for this date."}&quot;</p>
                 </div>
-                <button onClick={() => setSelectedEntry(null)} className="w-full mt-6 sm:mt-10 bg-blue-800 text-white py-4 sm:py-5 rounded-xl sm:rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">Return to Sanctuary</button>
+                <button onClick={() => setSelectedEntry(null)} className="w-full mt-6 sm:mt-10 bg-blue-800 dark:bg-blue-600 text-white py-4 sm:py-5 rounded-xl sm:rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">Return to Sanctuary</button>
               </div>
             </motion.div>
           </div>
@@ -311,13 +375,71 @@ export default function MoodSanctuaryPage() {
       {/* RHYTHM GAME MODAL (Full Screen) */}
       <AnimatePresence>
         {isGameModalOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[300] bg-slate-950/95 backdrop-blur-3xl flex items-center justify-center p-4">
-            <button onClick={() => setIsGameModalOpen(false)} className="absolute top-6 sm:top-10 right-6 sm:right-10 text-white p-3 sm:p-5 bg-white/5 rounded-full border border-white/10"><X /></button>
-            <div className="text-white text-center max-w-sm">
-               <h2 className="text-3xl sm:text-4xl font-black italic mb-4 tracking-tighter">RHYTHM PRO</h2>
-               <p className="text-slate-400 font-bold text-xs leading-relaxed mb-8 sm:mb-10 px-4">Sync your heartbeat with the flow. Let the music guide your peace.</p>
-               <button onClick={() => setIsGameModalOpen(false)} className="bg-blue-600 hover:bg-blue-500 px-10 sm:px-12 py-4 sm:py-5 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl shadow-blue-600/40">Enter the Flow</button>
-            </div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[300] bg-slate-950/95 backdrop-blur-3xl flex flex-col items-center justify-center p-4">
+            <button 
+              onClick={() => { setIsGameModalOpen(false); setGameState("idle"); }} 
+              className="absolute top-6 sm:top-10 right-6 sm:right-10 text-white p-3 sm:p-5 bg-white/10 rounded-full border border-white/20 hover:bg-white/20 transition-colors z-[350]"
+            >
+              <X />
+            </button>
+            
+            {gameState === "idle" && (
+              <div className="text-white text-center max-w-sm">
+                 <h2 className="text-3xl sm:text-4xl font-black italic mb-4 tracking-tighter">RHYTHM PRO</h2>
+                 <p className="text-slate-400 font-bold text-xs leading-relaxed mb-8 sm:mb-10 px-4">
+                   Tap the black tiles to match the rhythm. Don&apos;t let them pass, and don&apos;t tap the white space!
+                 </p>
+                 <button onClick={startGame} className="bg-blue-600 hover:bg-blue-500 px-10 sm:px-12 py-4 sm:py-5 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl shadow-blue-600/40 transition-all active:scale-95">
+                   Enter the Flow
+                 </button>
+              </div>
+            )}
+
+            {gameState === "playing" && (
+              <div className="relative flex flex-col items-center w-full">
+                {/* Live Score */}
+                <div className="text-blue-400 font-black text-5xl mb-8 drop-shadow-lg">{score}</div>
+                
+                {/* Piano Board */}
+                <div 
+                  className="relative w-full max-w-xs sm:max-w-sm h-[400px] sm:h-[500px] bg-white border-4 border-slate-800 overflow-hidden cursor-pointer rounded-lg shadow-2xl"
+                  onPointerDown={() => setGameState("gameover")} // Jika klik/tap area putih = Game Over
+                >
+                  {/* Column Dividers */}
+                  <div className="absolute inset-0 flex pointer-events-none">
+                    <div className="flex-1 border-r border-slate-200"></div>
+                    <div className="flex-1 border-r border-slate-200"></div>
+                    <div className="flex-1 border-r border-slate-200"></div>
+                    <div className="flex-1"></div>
+                  </div>
+                  
+                  {/* The Tiles */}
+                  {tiles.map(tile => (
+                    <div 
+                      key={tile.id}
+                      onPointerDown={(e) => { 
+                        e.stopPropagation(); // Mencegah klik tembus ke background putih
+                        clickTile(tile.id); 
+                      }}
+                      className={`absolute w-1/4 h-[25%] transition-colors duration-[50ms] border border-white/10 ${tile.clicked ? "bg-slate-300/50" : "bg-slate-900 shadow-inner"}`}
+                      style={{ left: `${tile.col * 25}%`, top: `${tile.y}%` }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {gameState === "gameover" && (
+              <div className="text-white text-center max-w-sm mt-8">
+                 <h2 className="text-4xl sm:text-5xl font-black italic mb-2 tracking-tighter text-rose-500">GAME OVER</h2>
+                 <p className="text-slate-300 font-bold text-lg leading-relaxed mb-8 sm:mb-10 px-4">
+                   Score: <span className="text-white text-4xl font-black block mt-2">{score}</span>
+                 </p>
+                 <button onClick={startGame} className="bg-blue-600 hover:bg-blue-500 px-10 sm:px-12 py-4 sm:py-5 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl shadow-blue-600/40 transition-all active:scale-95">
+                   Try Again
+                 </button>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

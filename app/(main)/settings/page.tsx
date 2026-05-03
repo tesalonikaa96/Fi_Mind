@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTheme } from "next-themes"; // ✅ Ditambahkan
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   User, Bell, GraduationCap, Moon, Sun, Shield, 
@@ -16,14 +17,22 @@ type SettingView = 'main' | 'notifications' | 'privacy' | 'security' | 'sessions
 export default function SettingsPage() {
   const router = useRouter();
   
+  // ✅ Integrasi next-themes
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  
   const [currentView, setCurrentView] = useState<SettingView>('main');
   const [userName, setUserName] = useState("Tesalonika Tamba");
   const [userMajor, setUserMajor] = useState("English Literature • Jakarta International University");
-  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const [notifs, setNotifs] = useState({ email: true, push: true, deadline: true, quiet: false });
   const [privacy, setPrivacy] = useState({ profilePublic: false, shareActivity: true, syncClassroom: true });
   const [security, setSecurity] = useState({ twoFactor: false, loginAlerts: true });
+
+  // ✅ Mencegah error hydration di Next.js
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -41,13 +50,14 @@ export default function SettingsPage() {
     router.refresh();
   };
 
+  // ✅ Fungsi toggle dikaitkan dengan next-themes
   const toggleDarkMode = () => {
-    const newMode = !isDarkMode;
-    setIsDarkMode(newMode);
-    if (newMode) document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
+    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
   };
 
+  if (!mounted) return null;
+
+  const isDarkMode = resolvedTheme === 'dark';
   const bgGradient = isDarkMode 
     ? "linear-gradient(to bottom right, #020617 0%, #0f172a 100%)" 
     : "linear-gradient(to bottom right, #F0F7FF 0%, #FFFFFF 100%)";

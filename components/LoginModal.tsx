@@ -19,16 +19,14 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(""); 
 
-  // --- LOGIN GOOGLE (SUDAH DIUPDATE SCOPES-NYA) ---
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        // DI SINI PERUBAHANNYA: Menambahkan izin coursework agar tugas terbaca
         scopes: 'https://www.googleapis.com/auth/classroom.courses.readonly https://www.googleapis.com/auth/classroom.coursework.me.readonly',
         queryParams: { 
           access_type: 'offline', 
-          prompt: 'consent' // Ini memaksa Google nanya izin lagi ke kamu
+          prompt: 'consent' 
         },
         redirectTo: `${window.location.origin}/dashboard`,
       },
@@ -54,8 +52,16 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         router.push("/dashboard");
       }
     } catch (err: any) {
-      setErrorMsg("Email atau password salah. Coba lagi ya!");
-      console.error(err.message);
+      console.error("Login Error:", err.message);
+
+      // Logika pesan error yang lebih cerdas
+      if (err.message.includes("Invalid login credentials")) {
+        setErrorMsg("Email atau password salah. Jika kamu sebelumnya daftar pakai Google, silakan buat password dulu melalui halaman Register.");
+      } else if (err.message.includes("Email not confirmed")) {
+        setErrorMsg("Email kamu belum dikonfirmasi. Silakan cek inbox/spam email kamu.");
+      } else {
+        setErrorMsg(err.message || "Gagal masuk. Coba lagi nanti.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -76,7 +82,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               initial={{ opacity: 0, scale: 0.9, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 30 }}
-              className="w-full max-w-md rounded-[40px] border border-white/20 bg-white shadow-2xl pointer-events-auto relative overflow-hidden flex flex-col max-h-[90vh]"
+              className="w-full max-w-md rounded-[40px] border border-white/20 bg-white shadow-2xl pointer-events-auto relative overflow-hidden flex flex-col max-h-[95vh]"
             >
               <div className="h-2 w-full shrink-0 bg-gradient-to-r from-sky-400 via-indigo-500 to-purple-500" />
               
@@ -89,25 +95,25 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   <img src="/icon.png" alt="Fi-Mind Logo" className="h-10 w-10 object-contain drop-shadow-sm" />
                 </div>
 
-                <h2 className="text-3xl font-black text-slate-800 tracking-tighter">FI-Mind</h2>
-                <p className="mt-2 text-slate-500 font-medium text-sm">Enter your details to access your sanctuary.</p>
+                <h2 className="text-3xl font-black text-slate-800 tracking-tighter uppercase italic">Fi-Mind</h2>
+                <p className="mt-2 text-slate-500 font-medium text-sm">Welcome back to your academic sanctuary.</p>
 
                 {errorMsg && (
-                  <div className="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-500 text-xs font-bold">
+                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-500 text-[11px] font-bold">
                     {errorMsg}
-                  </div>
+                  </motion.div>
                 )}
 
                 <form onSubmit={handleManualSubmit} className="mt-6 space-y-4 text-left">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Email Address</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Identity (Email)</label>
                     <div className="relative">
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                       <input 
                         type="email" 
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="tesa@example.com"
+                        placeholder="student@jiu.ac"
                         className="w-full rounded-2xl border border-slate-100 bg-slate-50/50 py-4 pl-12 pr-4 text-sm outline-none transition-all focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-300"
                         required
                       />
@@ -115,7 +121,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Password</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Sanctuary Key (Password)</label>
                     <div className="relative">
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                       <input 
@@ -132,16 +138,16 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   <button 
                     type="submit"
                     disabled={isLoading}
-                    className="w-full flex items-center justify-center gap-2 bg-sky-600 py-4 rounded-2xl text-white font-bold text-sm shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all active:scale-[0.98] mt-2 disabled:bg-sky-400 disabled:cursor-not-allowed"
+                    className="w-full flex items-center justify-center gap-2 bg-sky-600 py-4 rounded-2xl text-white font-bold text-sm shadow-lg shadow-sky-100 hover:bg-sky-700 transition-all active:scale-[0.98] mt-2 disabled:bg-sky-400"
                   >
                     {isLoading ? <Loader2 size={18} className="animate-spin" /> : null}
-                    {isLoading ? "Connecting..." : "Join Us"}
+                    {isLoading ? "Synchronizing..." : "Enter Sanctuary"}
                   </button>
                 </form>
 
                 <div className="relative my-6">
                   <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
-                  <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-[0.2em]"><span className="bg-white px-4 text-slate-300">or connect with</span></div>
+                  <div className="relative flex justify-center text-[10px] uppercase font-black tracking-[0.2em]"><span className="bg-white px-4 text-slate-300">Fast Access</span></div>
                 </div>
 
                 <button 
@@ -152,17 +158,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="h-5 w-5" alt="Google" />
                   Continue with Google
                 </button>
-
-                <div className="mt-6 flex items-center justify-center gap-2 text-slate-300">
-                  <ShieldCheck size={14} />
-                  <p className="text-[10px] font-bold uppercase tracking-widest">End-to-End Encryption</p>
-                </div>
               </div>
 
               <div className="bg-slate-50 p-6 text-center border-t border-slate-100 shrink-0">
                 <p className="text-sm text-slate-500 font-medium">
-                  Don&apos;t have an account?{" "}
-                  <Link href="/register" onClick={onClose} className="text-sky-600 font-bold hover:text-sky-700 hover:underline transition-all">
+                  New student?{" "}
+                  <Link href="/register" onClick={onClose} className="text-sky-600 font-bold hover:underline">
                     Register here
                   </Link>
                 </p>

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { 
   TrendingUp, Map, Search, ArrowRight, ChevronDown, 
   Target, MessageSquare, X, Send, ShieldCheck, ChevronRight
@@ -123,18 +123,36 @@ const CAREER_DATA = {
 
 type MajorType = keyof typeof CAREER_DATA;
 
+type ChatMessage = {
+  role: "user" | "ai";
+  text: string;
+  timestamp: string;
+};
+
 export default function CareerPage() {
   const [selectedMajor, setSelectedMajor] = useState<MajorType>("Information Technology (IT)");
   const [isInterviewOpen, setIsInterviewOpen] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
-  const [chatHistory, setChatHistory] = useState<{role: string, text: string}[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [userName, setUserName] = useState("Tesalonika");
 
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // ✅ RADAR PENDETEKSI WAKTU UNTUK SAPAAN
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
+
   const [showFimi, setShowFimi] = useState(false);
   const [fimiStep, setFimiStep] = useState(0);
+  
+  // ✅ Fimi sekarang menyapa sesuai waktu
   const fimiDialogues = useMemo(() => [
-    `Hi ${userName}! 🦊 I'm analyzing your career roadmap.`,
+    `${getGreeting()}, ${userName}! 🦊 I'm analyzing your career roadmap.`,
     "Based on your assignments, I've identified your top career match.",
     "Ready to practice? Let's launch a mock interview whenever you're ready! ✨"
   ], [userName]);
@@ -153,6 +171,12 @@ export default function CareerPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (isInterviewOpen) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatHistory, isTyping, isInterviewOpen]);
+
   const currentData = CAREER_DATA[selectedMajor];
 
   const handleStartInterview = () => {
@@ -160,7 +184,9 @@ export default function CareerPage() {
     setChatHistory([
       { 
         role: "ai", 
-        text: `Hi! I'm your AI Study Buddy. Let's practice for the ${currentData.performance.topMatch} role. How would you explain your experience in ${selectedMajor} to a recruiter?` 
+        // ✅ AI Interviewer menyapa sesuai waktu
+        text: `${getGreeting()}! I'm your AI Study Buddy. Let's practice for the ${currentData.performance.topMatch} role. How would you explain your experience in ${selectedMajor} to a recruiter?`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
     ]);
   };
@@ -170,7 +196,8 @@ export default function CareerPage() {
     if (!chatMessage.trim()) return;
   
     const userMsg = chatMessage;
-    setChatHistory(prev => [...prev, { role: "user", text: userMsg }]);
+    const userTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setChatHistory(prev => [...prev, { role: "user", text: userMsg, timestamp: userTime }]);
     setChatMessage("");
     setIsTyping(true);
   
@@ -186,14 +213,17 @@ export default function CareerPage() {
       });
       const data = await res.json();
       if (data.reply) {
-        setChatHistory(prev => [...prev, { role: "ai", text: data.reply }]);
+        const aiTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setChatHistory(prev => [...prev, { role: "ai", text: data.reply, timestamp: aiTime }]);
       } else {
         throw new Error("No reply");
       }
     } catch (error) {
+      const errorTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       setChatHistory(prev => [...prev, { 
         role: "ai", 
-        text: "Sorry, my connection is a bit unstable. Could you repeat that?" 
+        text: "Sorry, my connection is a bit unstable. Could you repeat that?",
+        timestamp: errorTime
       }]);
     } finally {
       setIsTyping(false);
@@ -204,9 +234,9 @@ export default function CareerPage() {
     <div className="min-h-screen p-4 sm:p-6 md:p-10 pb-24 relative overflow-hidden bg-[#F0F7FF] dark:bg-slate-950 transition-colors duration-500">
       
       {/* ── BACKGROUND MESH ── */}
-      <div className="absolute inset-0 pointer-events-none opacity-50 dark:opacity-20">
-         <div className="absolute -top-48 -right-48 w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] bg-blue-300 rounded-full blur-[100px] sm:blur-[120px]" />
-         <div className="absolute top-1/2 -left-48 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-indigo-300 rounded-full blur-[100px] sm:blur-[120px]" />
+      <div className="absolute inset-0 pointer-events-none opacity-50 dark:opacity-20 transition-opacity duration-500">
+         <div className="absolute -top-48 -right-48 w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] bg-blue-300 dark:bg-blue-800 rounded-full blur-[100px] sm:blur-[120px]" />
+         <div className="absolute top-1/2 -left-48 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-indigo-300 dark:bg-indigo-900 rounded-full blur-[100px] sm:blur-[120px]" />
       </div>
 
       <div className="mx-auto max-w-6xl relative z-10">
@@ -220,7 +250,7 @@ export default function CareerPage() {
             >
               Future Path Dashboard
             </motion.h1>
-            <p className="text-blue-700 font-black uppercase tracking-[0.2em] text-[8px] mt-1 flex items-center gap-2">
+            <p className="text-blue-700 dark:text-blue-500 font-black uppercase tracking-[0.2em] text-[8px] mt-1 flex items-center gap-2">
               <ShieldCheck size={12} /> Career Tracking: Synced
             </p>
           </div>
@@ -229,13 +259,13 @@ export default function CareerPage() {
             <select 
               value={selectedMajor}
               onChange={(e) => setSelectedMajor(e.target.value as MajorType)}
-              className="appearance-none w-full bg-white/80 backdrop-blur-md border-2 border-white text-slate-900 font-black text-[10px] sm:text-xs py-3.5 sm:py-4 pl-5 pr-12 rounded-[20px] shadow-xl focus:outline-none cursor-pointer uppercase tracking-widest"
+              className="appearance-none w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-2 border-white dark:border-slate-800 text-slate-900 dark:text-slate-100 font-black text-[10px] sm:text-xs py-3.5 sm:py-4 pl-5 pr-12 rounded-[20px] shadow-xl focus:outline-none cursor-pointer uppercase tracking-widest transition-colors"
             >
               {Object.keys(CAREER_DATA).map(major => (
                 <option key={major} value={major}>{major}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-600 pointer-events-none" />
+            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-600 dark:text-blue-400 pointer-events-none" />
           </motion.div>
         </header>
 
@@ -244,8 +274,8 @@ export default function CareerPage() {
           
           {/* KOLOM KIRI (7 Col on Desktop) */}
           <div className="space-y-6 lg:col-span-7">
-            <motion.div key={`tracker-${selectedMajor}`} initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="overflow-hidden rounded-[32px] sm:rounded-[40px] bg-white/90 backdrop-blur-xl border-2 border-white shadow-2xl">
-              <div className="bg-blue-800 p-6 sm:p-10 text-white relative overflow-hidden text-left">
+            <motion.div key={`tracker-${selectedMajor}`} initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="overflow-hidden rounded-[32px] sm:rounded-[40px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-2 border-white dark:border-slate-800 shadow-2xl transition-colors">
+              <div className="bg-blue-800 dark:bg-blue-900 p-6 sm:p-10 text-white relative overflow-hidden text-left">
                 <div className="relative z-10 flex items-center gap-3 mb-4">
                   <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-blue-200" />
                   <h2 className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.3em] text-blue-200">Performance Tracker</h2>
@@ -257,32 +287,36 @@ export default function CareerPage() {
                 <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl" />
               </div>
               <div className="p-6 sm:p-10 text-left">
-                <div className="flex justify-between text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                <div className="flex justify-between text-[9px] sm:text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">
                   <span>Job Matching Progress</span>
-                  <span className="text-blue-700">{currentData.performance.progress}%</span>
+                  <span className="text-blue-700 dark:text-blue-400">{currentData.performance.progress}%</span>
                 </div>
-                <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden p-1 border border-slate-200">
+                <div className="h-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-1 border border-slate-200 dark:border-slate-700">
                   <motion.div 
                     initial={{ width: 0 }} animate={{ width: `${currentData.performance.progress}%` }} transition={{ duration: 1 }}
-                    className="h-full bg-blue-700 rounded-full shadow-lg"
+                    className="h-full bg-blue-700 dark:bg-blue-500 rounded-full shadow-lg"
                   />
                 </div>
               </div>
             </motion.div>
 
-            <div className="rounded-[32px] sm:rounded-[40px] bg-white/90 backdrop-blur-xl border-2 border-white shadow-2xl p-6 sm:p-10 text-left">
+            <div className="rounded-[32px] sm:rounded-[40px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-2 border-white dark:border-slate-800 shadow-2xl p-6 sm:p-10 text-left transition-colors">
               <div className="flex items-center gap-3 mb-8 sm:mb-10">
-                <div className="h-9 w-9 sm:h-11 sm:w-11 bg-blue-50 text-blue-800 rounded-xl sm:rounded-2xl flex items-center justify-center">
+                <div className="h-9 w-9 sm:h-11 sm:w-11 bg-blue-50 dark:bg-slate-800 text-blue-800 dark:text-blue-400 rounded-xl sm:rounded-2xl flex items-center justify-center">
                   <Map className="w-5 h-5" />
                 </div>
-                <h2 className="text-base sm:text-lg font-black text-slate-800 uppercase tracking-tighter">Industry Learning Path</h2>
+                <h2 className="text-base sm:text-lg font-black text-slate-800 dark:text-white uppercase tracking-tighter">Industry Learning Path</h2>
               </div>
-              <div className="relative pl-4 border-l-2 border-blue-100 space-y-8 sm:space-y-10 ml-2">
+              <div className="relative pl-4 border-l-2 border-blue-100 dark:border-slate-700 space-y-8 sm:space-y-10 ml-2">
                 {currentData.path.map((step, idx) => (
                   <div key={idx} className="relative pl-8">
-                    <div className={`absolute -left-[33px] sm:-left-[34px] top-1 h-5 w-5 rounded-full border-4 border-white shadow-md ${step.status === 'completed' ? 'bg-emerald-500' : step.status === 'current' ? 'bg-blue-700 ring-4 ring-blue-100' : 'bg-slate-200'}`} />
-                    <h4 className="font-black text-slate-900 text-sm sm:text-base">{step.title}</h4>
-                    <p className="text-[11px] sm:text-xs font-bold text-slate-400 mt-1">{step.desc}</p>
+                    <div className={`absolute -left-[33px] sm:-left-[34px] top-1 h-5 w-5 rounded-full border-4 border-white dark:border-slate-900 shadow-md ${
+                      step.status === 'completed' ? 'bg-emerald-500 dark:bg-emerald-400' : 
+                      step.status === 'current' ? 'bg-blue-700 dark:bg-blue-500 ring-4 ring-blue-100 dark:ring-blue-900/30' : 
+                      'bg-slate-200 dark:bg-slate-700'
+                    }`} />
+                    <h4 className="font-black text-slate-900 dark:text-slate-100 text-sm sm:text-base">{step.title}</h4>
+                    <p className="text-[11px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 mt-1">{step.desc}</p>
                   </div>
                 ))}
               </div>
@@ -291,30 +325,30 @@ export default function CareerPage() {
 
           {/* KOLOM KANAN (5 Col on Desktop) */}
           <div className="space-y-6 lg:col-span-5">
-            <div className="rounded-[32px] sm:rounded-[40px] bg-white/90 backdrop-blur-xl border-2 border-white shadow-2xl p-6 sm:p-10 text-left">
+            <div className="rounded-[32px] sm:rounded-[40px] bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-2 border-white dark:border-slate-800 shadow-2xl p-6 sm:p-10 text-left transition-colors">
               <div className="flex items-center gap-3 mb-8">
-                 <div className="h-9 w-9 sm:h-11 sm:w-11 bg-blue-50 text-blue-800 rounded-xl sm:rounded-2xl flex items-center justify-center">
+                 <div className="h-9 w-9 sm:h-11 sm:w-11 bg-blue-50 dark:bg-slate-800 text-blue-800 dark:text-blue-400 rounded-xl sm:rounded-2xl flex items-center justify-center">
                    <Target className="w-5 h-5" />
                  </div>
-                <h2 className="text-base sm:text-lg font-black text-slate-800 uppercase tracking-tighter">Skill Gap Meter</h2>
+                <h2 className="text-base sm:text-lg font-black text-slate-800 dark:text-white uppercase tracking-tighter">Skill Gap Meter</h2>
               </div>
               <div className="space-y-6 sm:space-y-8">
                 {currentData.skills.map((skill) => (
                   <div key={skill.name}>
-                    <div className="flex justify-between text-[8px] sm:text-[9px] font-black mb-2 uppercase tracking-widest text-slate-400">
+                    <div className="flex justify-between text-[8px] sm:text-[9px] font-black mb-2 uppercase tracking-widest text-slate-400 dark:text-slate-500">
                       <span>{skill.name}</span>
-                      <span className="text-blue-700">{skill.current}%</span>
+                      <span className="text-blue-700 dark:text-blue-400">{skill.current}%</span>
                     </div>
-                    <div className="relative h-2.5 w-full bg-slate-100 rounded-full">
-                      <div className="absolute top-0 bottom-0 w-1 bg-rose-500 z-10 rounded-full" style={{ left: `${skill.required}%` }} title="Required Level" />
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${skill.current}%` }} className={`h-full rounded-full ${skill.current >= skill.required ? 'bg-emerald-500' : 'bg-blue-700'}`} />
+                    <div className="relative h-2.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full">
+                      <div className="absolute top-0 bottom-0 w-1 bg-rose-500 dark:bg-rose-400 z-10 rounded-full" style={{ left: `${skill.required}%` }} title="Required Level" />
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${skill.current}%` }} className={`h-full rounded-full ${skill.current >= skill.required ? 'bg-emerald-500 dark:bg-emerald-400' : 'bg-blue-700 dark:bg-blue-500'}`} />
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-[32px] sm:rounded-[40px] border-2 border-white bg-slate-900 p-6 sm:p-10 shadow-2xl relative overflow-hidden text-left group">
+            <div className="rounded-[32px] sm:rounded-[40px] border-2 border-white dark:border-slate-800 bg-slate-900 dark:bg-slate-950 p-6 sm:p-10 shadow-2xl relative overflow-hidden text-left group">
               <div className="relative z-10">
                 <div className="flex items-center gap-4 mb-6">
                   <div className="h-10 w-10 sm:h-14 sm:w-14 bg-blue-800 text-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
@@ -322,7 +356,7 @@ export default function CareerPage() {
                   </div>
                   <h2 className="text-lg sm:text-xl font-black text-white tracking-tighter uppercase italic">AI Interview Buddy</h2>
                 </div>
-                <p className="text-[11px] sm:text-xs font-bold text-slate-400 mb-8 leading-relaxed">Ready for a professional mock interview for <strong className="text-blue-400">{currentData.performance.topMatch}</strong>?</p>
+                <p className="text-[11px] sm:text-xs font-bold text-slate-400 dark:text-slate-500 mb-8 leading-relaxed">Ready for a professional mock interview for <strong className="text-blue-400">{currentData.performance.topMatch}</strong>?</p>
                 <button onClick={handleStartInterview} className="w-full rounded-xl sm:rounded-2xl bg-blue-700 py-4 sm:py-5 font-black text-[10px] sm:text-xs uppercase tracking-widest text-white shadow-xl hover:bg-blue-600 transition-all active:scale-95">
                   Launch Mock Interview
                 </button>
@@ -337,19 +371,19 @@ export default function CareerPage() {
       <AnimatePresence>
         {showFimi && (
           <div className="fixed inset-0 z-[250] flex items-end justify-end p-4 sm:p-8 pointer-events-none">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/20 backdrop-blur-[2px] pointer-events-auto" onClick={() => setShowFimi(false)} />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-950/20 dark:bg-slate-950/60 backdrop-blur-[2px] pointer-events-auto" onClick={() => setShowFimi(false)} />
             <motion.div 
               initial={{ y: 150, opacity: 0, scale: 0.8 }} 
               animate={{ y: 0, opacity: 1, scale: 1 }} 
               exit={{ y: 100, opacity: 0 }} 
               className="relative z-[260] flex items-end gap-3 sm:gap-5 max-w-[calc(100%-2rem)] sm:max-w-sm w-full pointer-events-auto text-left"
             >
-              <div className="bg-white p-5 sm:p-7 rounded-[28px] sm:rounded-[32px] rounded-br-sm shadow-2xl border-2 border-blue-200 relative flex-1 mb-6 sm:mb-10">
-                <p className="text-slate-800 text-xs sm:text-sm font-bold leading-relaxed">{fimiDialogues[fimiStep]}</p>
-                <button onClick={() => fimiStep < fimiDialogues.length - 1 ? setFimiStep(s => s + 1) : setShowFimi(false)} className="mt-5 w-full bg-blue-800 text-white font-black text-[10px] py-4 rounded-xl uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 active:scale-95">
+              <div className="bg-white dark:bg-slate-800 p-5 sm:p-7 rounded-[28px] sm:rounded-[32px] rounded-br-sm shadow-2xl border-2 border-blue-200 dark:border-slate-700 relative flex-1 mb-6 sm:mb-10">
+                <p className="text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-bold leading-relaxed">{fimiDialogues[fimiStep]}</p>
+                <button onClick={() => fimiStep < fimiDialogues.length - 1 ? setFimiStep(s => s + 1) : setShowFimi(false)} className="mt-5 w-full bg-blue-800 dark:bg-blue-600 text-white font-black text-[10px] py-4 rounded-xl uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 active:scale-95">
                   {fimiStep < fimiDialogues.length - 1 ? "Next" : "Got it!"} <ChevronRight size={14} />
                 </button>
-                <div className="absolute -bottom-3 right-8 w-6 h-6 bg-white border-b-2 border-r-2 border-blue-200 transform rotate-45" />
+                <div className="absolute -bottom-3 right-8 w-6 h-6 bg-white dark:bg-slate-800 border-b-2 border-r-2 border-blue-200 dark:border-slate-700 transform rotate-45" />
               </div>
               <div className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 mb-6 sm:mb-10"><FimiMascotSVG isTalking={true} /></div>
             </motion.div>
@@ -363,11 +397,11 @@ export default function CareerPage() {
           <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-3 sm:p-4 md:p-6">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 30 }}
-              className="w-full max-w-2xl bg-white rounded-[32px] sm:rounded-[48px] shadow-2xl overflow-hidden flex flex-col h-[90vh] md:h-[80vh] border-2 border-white"
+              className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-[32px] sm:rounded-[48px] shadow-2xl overflow-hidden flex flex-col h-[90vh] md:h-[80vh] border-2 border-white dark:border-slate-800"
             >
               <div className="bg-slate-900 p-5 sm:p-6 text-white flex justify-between items-center text-left">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 bg-blue-800 rounded-xl flex items-center justify-center shadow-lg"><MessageSquare className="w-6 h-6" /></div>
+                  <div className="h-10 w-10 bg-blue-800 dark:bg-blue-600 rounded-xl flex items-center justify-center shadow-lg"><MessageSquare className="w-6 h-6" /></div>
                   <div className="min-w-0">
                      <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">Mock Interview</span>
                      <h4 className="font-black text-xs sm:text-sm tracking-tighter truncate">{currentData.performance.topMatch}</h4>
@@ -378,39 +412,49 @@ export default function CareerPage() {
                 </button>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-5 sm:p-8 space-y-6 bg-slate-50 text-left scrollbar-hide">
+              <div className="flex-1 overflow-y-auto p-5 sm:p-8 space-y-6 bg-slate-50 dark:bg-slate-950 text-left scrollbar-hide">
                 {chatHistory.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[90%] sm:max-w-[85%] p-4 sm:p-5 rounded-[22px] sm:rounded-[28px] text-[13px] sm:text-sm font-medium leading-relaxed ${msg.role === 'user' ? 'bg-blue-800 text-white rounded-tr-none' : 'bg-white border-2 border-slate-100 text-slate-800 rounded-tl-none shadow-sm'}`}>
+                  <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                    <div className={`max-w-[90%] sm:max-w-[85%] p-4 sm:p-5 rounded-[22px] sm:rounded-[28px] text-[13px] sm:text-sm font-medium leading-relaxed ${
+                      msg.role === 'user' 
+                        ? 'bg-blue-800 dark:bg-blue-600 text-white rounded-tr-none' 
+                        : 'bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-tl-none shadow-sm'
+                    }`}>
                       {msg.text}
                     </div>
+                    {/* Timestamp */}
+                    <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-1.5 mx-2">
+                      {msg.timestamp}
+                    </span>
                   </div>
                 ))}
                 
                 {isTyping && (
                   <div className="flex justify-start">
-                    <div className="bg-white border-2 border-slate-100 p-4 rounded-[22px] rounded-tl-none shadow-sm flex gap-1.5 items-center h-10 sm:h-12">
+                    <div className="bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 p-4 rounded-[22px] rounded-tl-none shadow-sm flex gap-1.5 items-center h-10 sm:h-12">
                       <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></span>
                       <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></span>
                       <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></span>
                     </div>
                   </div>
                 )}
+                {/* DIV JANGKAR UNTUK AUTO-SCROLL */}
+                <div ref={messagesEndRef} />
               </div>
 
-              <form onSubmit={handleSendMessage} className="p-4 sm:p-6 bg-white border-t-2 border-slate-50 flex gap-2 sm:gap-3">
+              <form onSubmit={handleSendMessage} className="p-4 sm:p-6 bg-white dark:bg-slate-900 border-t-2 border-slate-50 dark:border-slate-800 flex gap-2 sm:gap-3">
                 <input 
                   type="text" 
                   value={chatMessage} 
                   onChange={(e) => setChatMessage(e.target.value)}
                   placeholder="Type your response..."
                   disabled={isTyping}
-                  className="flex-1 bg-slate-100 border-2 border-transparent rounded-[18px] sm:rounded-2xl px-5 sm:px-6 py-3.5 sm:py-4 focus:ring-2 focus:ring-blue-500 text-slate-800 font-bold text-sm outline-none transition-all"
+                  className="flex-1 bg-slate-100 dark:bg-slate-800 border-2 border-transparent rounded-[18px] sm:rounded-2xl px-5 sm:px-6 py-3.5 sm:py-4 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 text-slate-800 dark:text-slate-200 font-bold text-sm outline-none transition-all placeholder-slate-400 dark:placeholder-slate-500"
                 />
                 <button 
                   type="submit" 
                   disabled={isTyping}
-                  className="bg-blue-800 text-white p-3.5 sm:p-4 rounded-[18px] sm:rounded-2xl hover:bg-blue-700 transition-all shadow-xl active:scale-95 disabled:opacity-50 shrink-0"
+                  className="bg-blue-800 dark:bg-blue-600 text-white p-3.5 sm:p-4 rounded-[18px] sm:rounded-2xl hover:bg-blue-700 dark:hover:bg-blue-500 transition-all shadow-xl active:scale-95 disabled:opacity-50 shrink-0"
                 >
                   <Send className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
